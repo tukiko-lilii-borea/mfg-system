@@ -1260,6 +1260,20 @@
         <div class="tab" onclick="switchSupTab('material')">材料発注先</div>
         <div class="tab" onclick="switchSupTab('other')">その他</div>
       </div>
+      <div id="sup-kana-tabs" style="display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px;">
+        <button class="btn btn-ghost btn-xs kana-tab active" data-row="" onclick="setSupKanaRow('')">全</button>
+        <button class="btn btn-ghost btn-xs kana-tab" data-row="あ" onclick="setSupKanaRow('あ')">あ</button>
+        <button class="btn btn-ghost btn-xs kana-tab" data-row="か" onclick="setSupKanaRow('か')">か</button>
+        <button class="btn btn-ghost btn-xs kana-tab" data-row="さ" onclick="setSupKanaRow('さ')">さ</button>
+        <button class="btn btn-ghost btn-xs kana-tab" data-row="た" onclick="setSupKanaRow('た')">た</button>
+        <button class="btn btn-ghost btn-xs kana-tab" data-row="な" onclick="setSupKanaRow('な')">な</button>
+        <button class="btn btn-ghost btn-xs kana-tab" data-row="は" onclick="setSupKanaRow('は')">は</button>
+        <button class="btn btn-ghost btn-xs kana-tab" data-row="ま" onclick="setSupKanaRow('ま')">ま</button>
+        <button class="btn btn-ghost btn-xs kana-tab" data-row="や" onclick="setSupKanaRow('や')">や</button>
+        <button class="btn btn-ghost btn-xs kana-tab" data-row="ら" onclick="setSupKanaRow('ら')">ら</button>
+        <button class="btn btn-ghost btn-xs kana-tab" data-row="わ" onclick="setSupKanaRow('わ')">わ</button>
+        <button class="btn btn-ghost btn-xs kana-tab" data-row="англ" onclick="setSupKanaRow('англ')">A-Z</button>
+      </div>
       <div class="card">
         <div class="search-row">
           <div class="search-input"><input type="text" id="sup-search" placeholder="🔍 会社名・フリガナ・担当者で検索..." oninput="renderSuppliers()"></div>
@@ -4260,14 +4274,48 @@ function showSupplierDetail(id){
   openModal('supplier-detail-modal');
 }
 
+// ===== 五十音の行フィルタ =====
+let supKanaRow = '';
+const KANA_ROWS = {
+  'あ':'あいうえおぁぃぅぇぉゔ', 'か':'かきくけこがぎぐげご', 'さ':'さしすせそざじずぜぞ',
+  'た':'たちつてとだぢづでどっ', 'な':'なにぬねの', 'は':'はひふへほばびぶべぼぱぴぷぺぽ',
+  'ま':'まみむめも', 'や':'やゆよゃゅょ', 'ら':'らりるれろ', 'わ':'わをん'
+};
+function _kanaHead(c){
+  // フリガナ優先、無ければ会社名。ひらがな化して先頭1文字
+  const s = toHiragana((c.kana||c.name||'').trim());
+  return s.charAt(0);
+}
+function _kanaRowOf(c){
+  const h = _kanaHead(c);
+  if(!h) return '';
+  for(const [row,chars] of Object.entries(KANA_ROWS)){
+    if(chars.includes(h)) return row;
+  }
+  if(/[a-zA-Zａ-ｚＡ-Ｚ0-9０-９]/.test(h)) return 'англ';
+  return '';
+}
+function setSupKanaRow(row){
+  supKanaRow = row;
+  document.querySelectorAll('#sup-kana-tabs .kana-tab').forEach(b=>{
+    b.classList.toggle('active', b.getAttribute('data-row')===row);
+    b.style.background = b.getAttribute('data-row')===row ? 'var(--accent)' : '';
+    b.style.color = b.getAttribute('data-row')===row ? '#fff' : '';
+  });
+  renderSuppliers();
+}
+
 function renderSuppliers() {
   const q = (document.getElementById('sup-search')||{value:''}).value.toLowerCase();
   let list = DB.companies.filter(c=>{
     const matchTab = supCurrentTab==='all' || (c.types||[]).includes(supCurrentTab);
     const qH = toHiragana(q);
     const matchQ = !q || c.name.toLowerCase().includes(q) || toHiragana(c.kana||'').includes(qH) || (c.contact||'').toLowerCase().includes(q);
-    return matchTab && matchQ;
+    const matchRow = !supKanaRow || _kanaRowOf(c)===supKanaRow;
+    return matchTab && matchQ && matchRow;
   });
+  // あいうえお順（フリガナ優先）で並べる
+  list.sort((a,b)=>toHiragana(a.kana||a.name||'').localeCompare(toHiragana(b.kana||b.name||''),'ja'));
   document.getElementById('sup-count-label').textContent = `${DB.companies.length}社登録済み`;
   document.getElementById('company-tbody').innerHTML = list.length ? list.map(c=>`
     <tr onclick="showSupplierDetail('${c.id}')" style="cursor:pointer;">
