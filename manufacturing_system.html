@@ -2140,8 +2140,16 @@ function renderDashboard() {
   const thisMonth = now.toISOString().slice(0,7);
   const thisYear = now.getFullYear().toString();
 
-  const monthProds = DB.productions.filter(p => p.date.startsWith(thisMonth));
-  const yearProds = DB.productions.filter(p => p.date.startsWith(thisYear));
+  // 売上月＝納期基準（＋取引先の締め日）。納期がない実績は作業日で判定
+  const nowM = now.getMonth()+1;
+  const monthProds = DB.productions.filter(p => {
+    const ym = _salesYM(p);
+    return ym && ym.y===now.getFullYear() && ym.m===nowM;
+  });
+  const yearProds = DB.productions.filter(p => {
+    const ym = _salesYM(p);
+    return ym && ym.y===now.getFullYear();
+  });
   const monthSales = monthProds.reduce((a,p)=>(a + (p.price||0)*(p.qty||0)),0);
   const yearSales = yearProds.reduce((a,p)=>(a + (p.price||0)*(p.qty||0)),0);
 
@@ -2155,8 +2163,9 @@ function renderDashboard() {
   // Monthly chart
   const monthly = Array(12).fill(0);
   yearProds.forEach(p => {
-    const m = parseInt(p.date.slice(5,7)) - 1;
-    monthly[m] += (p.price||0)*(p.qty||0);
+    const ym = _salesYM(p);
+    if (!ym) return;
+    monthly[ym.m - 1] += (p.price||0)*(p.qty||0);
   });
   const maxVal = Math.max(...monthly, 1);
   document.getElementById('monthly-chart').innerHTML = `
