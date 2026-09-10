@@ -975,6 +975,7 @@
           <div class="page-subtitle" id="prod-count-label"></div>
         </div>
         <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="openBlankWorksheet()">📄 空の作業書</button>
           <button class="btn btn-ghost btn-sm" onclick="exportProductionExcel()">📊 Excel出力</button>
           <button class="btn btn-primary btn-sm" onclick="showSection('production-form')">＋ 実績登録</button>
         </div>
@@ -1257,6 +1258,7 @@
       <div class="tabs" id="supplier-tabs">
         <div class="tab active" onclick="switchSupTab('all')">全社</div>
         <div class="tab" onclick="switchSupTab('client')">受注先</div>
+        <div class="tab" onclick="switchSupTab('outsource')">外注先</div>
         <div class="tab" onclick="switchSupTab('material')">材料発注先</div>
         <div class="tab" onclick="switchSupTab('other')">その他</div>
       </div>
@@ -1539,6 +1541,41 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="blank-ws-modal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <div class="modal-title">📄 空の作業書を作成</div>
+      <button class="modal-close" onclick="closeModal('blank-ws-modal')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px;">製品登録していない飛び込みの仕事用。作成すると実績にも登録されます（製品マスタには登録されません）。</div>
+    <div class="form-grid-2">
+      <div class="form-group"><label>図番（任意）</label><input type="text" id="bw-fignum"></div>
+      <div class="form-group"><label>品名 *</label><input type="text" id="bw-name"></div>
+      <div class="form-group"><label>受注先</label><input type="text" id="bw-client" list="rf-client-list"></div>
+      <div class="form-group"><label>製品単価（円）</label><input type="number" id="bw-price" placeholder="0"></div>
+      <div class="form-group"><label>🚚 納品数（個）*</label><input type="number" id="bw-qty" min="1" placeholder="例：10"></div>
+      <div class="form-group"><label>納期（任意）</label><input type="text" id="bw-due" placeholder="例：2026/9/25"></div>
+      <div class="form-group"><label>材料発注先</label><input type="text" id="bw-mat-supplier" list="pf-mat-supplier-list"></div>
+      <div class="form-group"><label>材料名</label><input type="text" id="bw-mat-name"></div>
+      <div class="form-group"><label>材料寸法</label><input type="text" id="bw-mat-size"></div>
+      <div class="form-group"><label>材料単価（円）</label><input type="number" id="bw-mat-price" placeholder="0"></div>
+      <div class="form-group"><label>📦 材料発注数（ヶ）</label><input type="number" id="bw-mat-qty" min="0" placeholder="例：10"></div>
+      <div class="form-group"><label>外注先（任意）</label><input type="text" id="bw-os-name" list="pf-outsource-list"></div>
+      <div class="form-group"><label>外注金額（円）</label>
+        <div style="display:flex;gap:6px;">
+          <input type="number" id="bw-os-price" placeholder="0" style="flex:1;">
+          <select id="bw-os-unit" style="width:100px;"><option value="per">1個あたり</option><option value="total">1式</option></select>
+        </div>
+      </div>
+      <div class="form-group full"><label>🔧 作業員へのメモ</label><textarea id="bw-note" style="min-height:56px;"></textarea></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('blank-ws-modal')">キャンセル</button>
+      <button class="btn btn-primary btn-sm" onclick="submitBlankWorksheet()">🖨 作成して印刷</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="merge-modal">
   <div class="modal" style="max-width:520px;">
     <div class="modal-header">
@@ -1592,7 +1629,10 @@
         <label>種別（複数選択可）</label>
         <div style="display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:6px;">
           <label style="display:flex;align-items:center;justify-content:flex-start;gap:8px;font-weight:400;cursor:pointer;font-size:13px;white-space:nowrap;width:auto;">
-            <input type="checkbox" id="sup-type-client" value="client" style="width:auto;flex:0 0 auto;margin:0;"> 受注先・外注先
+            <input type="checkbox" id="sup-type-client" value="client" style="width:auto;flex:0 0 auto;margin:0;"> 受注先
+          </label>
+          <label style="display:flex;align-items:center;justify-content:flex-start;gap:8px;font-weight:400;cursor:pointer;font-size:13px;white-space:nowrap;width:auto;">
+            <input type="checkbox" id="sup-type-outsource" value="outsource" style="width:auto;flex:0 0 auto;margin:0;"> 外注先
           </label>
           <label style="display:flex;align-items:center;justify-content:flex-start;gap:8px;font-weight:400;cursor:pointer;font-size:13px;white-space:nowrap;width:auto;">
             <input type="checkbox" id="sup-type-material" value="material" style="width:auto;flex:0 0 auto;margin:0;"> 材料発注先
@@ -1731,6 +1771,21 @@
       <div class="form-group full">
         <label>振込以外の希望</label>
         <input type="text" id="sup-otherpay" placeholder="なし／希望あり（内容）">
+      </div>
+      <div class="form-group full" style="margin-top:6px;padding:8px 12px;background:var(--bg3);border-radius:8px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center;">🔗 関連リンク（名刺・専用納品書など）
+        <button type="button" class="btn btn-ghost btn-sm" onclick="addSupLinkRow()" style="white-space:nowrap;">＋ リンク追加</button>
+      </div>
+      <div class="form-group full">
+        <div style="overflow-x:auto;">
+          <table style="width:100%;font-size:13px;">
+            <thead><tr>
+              <th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);width:35%;">名前</th>
+              <th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">リンク（URL）</th>
+              <th style="background:transparent;width:40px;border-bottom:1px solid var(--border);"></th>
+            </tr></thead>
+            <tbody id="sup-link-rows"></tbody>
+          </table>
+        </div>
       </div>
       <div class="form-group full">
         <label>備考</label>
@@ -4129,8 +4184,8 @@ function copyText(cell, text) {
 
 // ===== SUPPLIERS =====
 let supCurrentTab = 'all';
-const TYPE_LABELS = { client:'受注先', material:'材料発注先', other:'その他' };
-const TYPE_BADGE  = { client:'badge-blue', material:'badge-green', other:'badge-yellow' };
+const TYPE_LABELS = { client:'受注先', outsource:'外注先', material:'材料発注先', other:'その他' };
+const TYPE_BADGE  = { client:'badge-blue', outsource:'badge-orange', material:'badge-green', other:'badge-yellow' };
 
 function switchSupTab(tab) {
   supCurrentTab = tab;
@@ -4173,6 +4228,46 @@ function toKatakana(str) {
   return str.replace(/[ぁ-ゖ]/g, ch =>
     String.fromCharCode(ch.charCodeAt(0) + 0x60)
   );
+}
+
+// ===== 空の作業書（製品未登録の飛び込み仕事用） =====
+function openBlankWorksheet(){
+  ['bw-fignum','bw-name','bw-client','bw-price','bw-qty','bw-due','bw-mat-supplier','bw-mat-name','bw-mat-size','bw-mat-price','bw-mat-qty','bw-os-name','bw-os-price','bw-note'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('bw-os-unit').value='per';
+  updateDataLists();
+  openModal('blank-ws-modal');
+}
+function submitBlankWorksheet(){
+  const name = document.getElementById('bw-name').value.trim();
+  if(!name){ showToast('品名を入力してください','error'); return; }
+  const qty = parseInt(document.getElementById('bw-qty').value,10)||0;
+  if(qty<1){ showToast('納品数を1以上で入力してください','error'); return; }
+  const matSup = document.getElementById('bw-mat-supplier').value.trim();
+  const matName = document.getElementById('bw-mat-name').value.trim();
+  const matSize = document.getElementById('bw-mat-size').value.trim();
+  const matPrice = parseFloat(document.getElementById('bw-mat-price').value)||0;
+  const matQty = parseInt(document.getElementById('bw-mat-qty').value,10)||0;
+  const osName = document.getElementById('bw-os-name').value.trim();
+  const osPrice = parseFloat(document.getElementById('bw-os-price').value)||0;
+  const osUnit = document.getElementById('bw-os-unit').value||'per';
+  const pseudo = {
+    fignum: document.getElementById('bw-fignum').value.trim(),
+    name: name,
+    client: document.getElementById('bw-client').value.trim(),
+    price: parseFloat(document.getElementById('bw-price').value)||0,
+    workerNote: document.getElementById('bw-note').value.trim(),
+    matSupplier: matSup, matName: matName, matSize: matSize, matPrice: matPrice,
+    extraMaterials: [],
+    outsource: osName ? [{ name: osName, note: '', price: osPrice, priceUnit: osUnit }] : []
+  };
+  const hasMat = (matSup||matName||matPrice||matQty);
+  const qtys = hasMat ? [matQty] : [0];
+  const due = document.getElementById('bw-due').value.trim();
+  saveWorksheetRecord(pseudo, qtys, qty, due);
+  closeModal('blank-ws-modal');
+  refreshAllViews();
+  showToast('作業書を作成し、作業実績にも登録しました');
+  printWorksheet(pseudo, qtys, qty, due);
 }
 
 // ===== 会社統合 =====
@@ -4266,6 +4361,10 @@ function showSupplierDetail(id){
     ${grp('◆ インボイス・取引条件','#6b21a8', invoiceRows)}
     ${grp('◆ 請求関連','#9a3412', billRows)}
     ${grp('◆ 受取口座','#0e7490', bankRows)}
+    ${(c.links&&c.links.length)?sec('◆ 関連リンク','#b45309')+`
+      <div style="display:flex;flex-wrap:wrap;gap:10px;padding:12px 4px;">
+        ${c.links.map(l=>l.url?`<a href="${escapeHtml(l.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" class="btn btn-ghost btn-sm" style="text-decoration:none;">🔗 ${escapeHtml(l.name||'リンク')}</a>`:'').join('')}
+      </div>`:''}
     ${grp('◆ 備考','#334155', row('メモ', c.memo))}
     <div style="display:flex;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('supplier-detail-modal');editSupplier('${c.id}')">✏ 編集</button>
@@ -4350,7 +4449,8 @@ function openSupplierModal() {
   ['sup-name','sup-kana','sup-contact','sup-tel','sup-email','sup-zip','sup-address','sup-memo','sup-closing','sup-fax','sup-payday','sup-invoice','sup-paymethod','sup-offset','sup-billmethod','sup-billaddress','sup-bank','sup-branch','sup-acctype','sup-accnum','sup-accname','sup-feeoffset','sup-feenote','sup-otherpay'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('sup-contact-rows').innerHTML='';
   addSupContactRow();
-  ['sup-type-client','sup-type-material','sup-type-other'].forEach(id=>document.getElementById(id).checked=false);
+  document.getElementById('sup-link-rows').innerHTML='';
+  ['sup-type-client','sup-type-outsource','sup-type-material','sup-type-other'].forEach(id=>document.getElementById(id).checked=false);
   document.getElementById('sup-edit-id').value='';
   openModal('supplier-modal');
 }
@@ -4386,11 +4486,28 @@ function editSupplier(id) {
   document.getElementById('sup-contact-rows').innerHTML = '';
   const _cts = (c.contacts&&c.contacts.length) ? c.contacts : (c.contact ? [{name:c.contact,tel:'',email:'',note:''}] : []);
   _cts.forEach(x=>addSupContactRow(x));
+  document.getElementById('sup-link-rows').innerHTML = '';
+  (c.links||[]).forEach(l=>addSupLinkRow(l));
   document.getElementById('sup-type-client').checked = (c.types||[]).includes('client');
   document.getElementById('sup-type-material').checked = (c.types||[]).includes('material');
   document.getElementById('sup-type-other').checked = (c.types||[]).includes('other');
   document.getElementById('sup-edit-id').value = id;
   openModal('supplier-modal');
+}
+
+// リンク集の行（名刺・専用納品書など）
+function addSupLinkRow(data){
+  const tb=document.getElementById('sup-link-rows');const tr=document.createElement('tr');tr.className='sup-link-row';
+  tr.innerHTML=`<td><input type="text" class="sl-name" placeholder="例：名刺、専用納品書" value="${escapeHtml(data&&data.name||'')}"></td>`
+    +`<td><input type="text" class="sl-url" placeholder="https://..." value="${escapeHtml(data&&data.url||'')}"></td>`
+    +`<td style="text-align:center;"><button type="button" class="btn btn-ghost btn-xs" onclick="this.closest('tr').remove()" style="color:#dc2626;">×</button></td>`;
+  tb.appendChild(tr);
+}
+function getSupLinks(){
+  return [...document.querySelectorAll('#sup-link-rows .sup-link-row')].map(r=>({
+    name:r.querySelector('.sl-name').value.trim(),
+    url:r.querySelector('.sl-url').value.trim()
+  })).filter(l=>l.name||l.url);
 }
 
 // 担当者行（複数）
@@ -4421,7 +4538,7 @@ function copyText(t){
 function saveSupplier() {
   const name = document.getElementById('sup-name').value.trim();
   if (!name) { showToast('会社名を入力してください','error'); return; }
-  const types = ['client','material','other'].filter(t=>document.getElementById('sup-type-'+t).checked);
+  const types = ['client','outsource','material','other'].filter(t=>document.getElementById('sup-type-'+t).checked);
   const obj = {
     id: document.getElementById('sup-edit-id').value || genId(),
     name,
@@ -4449,7 +4566,8 @@ function saveSupplier() {
     accName: document.getElementById('sup-accname').value.trim(),
     feeOffset: document.getElementById('sup-feeoffset').value,
     feeNote: document.getElementById('sup-feenote').value.trim(),
-    otherPay: document.getElementById('sup-otherpay').value.trim()
+    otherPay: document.getElementById('sup-otherpay').value.trim(),
+    links: getSupLinks()
   };
   const editId = document.getElementById('sup-edit-id').value;
   let _hBefore = null, _hAction = 'add';
@@ -4566,11 +4684,14 @@ function deleteWorker(idx) {
 }
 
 function updateDataLists() {
-  // 受注先（client）タグ付きの会社のみ
-  const clientNames = DB.companies.filter(c=>(c.types||[]).includes('client')).map(c=>c.name);
-  // 材料発注先（material）タグ付きの会社のみ ＋「材料支給」を常に候補に追加
-  const materialNames = DB.companies.filter(c=>(c.types||[]).includes('material')).map(c=>c.name);
-  if (!materialNames.includes('材料支給')) materialNames.push('材料支給');
+  // あいうえお順（フリガナ優先）
+  const _sorted = (arr) => arr.slice().sort((a,b)=>toHiragana(a.kana||a.name||'').localeCompare(toHiragana(b.kana||b.name||''),'ja'));
+  const clientNames = _sorted(DB.companies.filter(c=>(c.types||[]).includes('client'))).map(c=>c.name);
+  // 外注先：outsourceタグ。まだ誰にも付いてなければ受注先を代わりに出す（互換）
+  const osTagged = _sorted(DB.companies.filter(c=>(c.types||[]).includes('outsource'))).map(c=>c.name);
+  const outsourceNames = osTagged.length ? osTagged : clientNames;
+  // 材料発注先：「材料支給」を必ず先頭に
+  const materialNames = ['材料支給', ..._sorted(DB.companies.filter(c=>(c.types||[]).includes('material'))).map(c=>c.name).filter(n=>n!=='材料支給')];
 
   const cl = document.getElementById('pf-client-list');
   if (cl) cl.innerHTML = clientNames.map(n=>`<option value="${n}">`).join('');
@@ -4583,15 +4704,13 @@ function updateDataLists() {
   const mc = document.getElementById('machine-list');
   if (mc) mc.innerHTML = [...new Set([...DB.machines,...DB.machineInfo.map(m=>m.name),...DB.productions.map(p=>p.machine).filter(Boolean)])].map(m=>`<option value="${m}">`).join('');
   const ol = document.getElementById('pf-outsource-list');
-  if (ol) ol.innerHTML = DB.companies.filter(c=>(c.types||[]).includes('other')).map(c=>`<option value="${c.name}">`).join('');
+  if (ol) ol.innerHTML = outsourceNames.map(n=>`<option value="${n}">`).join('');
   const wk = document.getElementById('rf-worker');
   if (wk) {
     const prev = wk.value;
     wk.innerHTML = '<option value="">選択（任意）</option>' + DB.workers.map(w=>`<option value="${w}" ${w===prev?'selected':''}>${w}</option>`).join('');
   }
 }
-
-// 製品フォームの取引先datalistを再生成（取引先管理が更新されたら呼ぶ）
 function refreshProductFormLists() {
   if (!DB.companies) return;
   const clientNames = DB.companies.filter(c=>(c.types||[]).includes('client')).map(c=>c.name);
