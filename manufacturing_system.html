@@ -491,6 +491,8 @@
 
   <!-- Main -->
   <main class="main">
+    <button id="back-fab" onclick="goBackSection()" title="前のページに戻る"
+      style="position:fixed;left:16px;bottom:16px;z-index:900;width:48px;height:48px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:20px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.18);display:none;align-items:center;justify-content:center;">←</button>
     <div class="mobile-header">
       <button class="menu-btn" onclick="toggleSidebar()">☰</button>
       <span style="font-weight:700;">⚙ 製造管理</span>
@@ -1250,7 +1252,7 @@
     <section class="section" id="sec-suppliers">
       <div class="page-header">
         <div><div class="page-title">取引先管理</div><div class="page-subtitle" id="sup-count-label"></div></div>
-        <button class="btn btn-primary btn-sm" onclick="openSupplierModal()">＋ 追加</button>
+        <div style="display:flex;gap:8px;"><button class="btn btn-ghost btn-sm" onclick="openMergeModal()">🔀 会社統合</button><button class="btn btn-primary btn-sm" onclick="openSupplierModal()">＋ 追加</button></div>
       </div>
       <div class="tabs" id="supplier-tabs">
         <div class="tab active" onclick="switchSupTab('all')">全社</div>
@@ -1490,9 +1492,10 @@
       <button class="modal-close" onclick="closeModal('worksheet-modal')">✕</button>
     </div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:6px;" id="ws-info"></div>
-    <div style="font-size:12px;color:var(--text2);background:var(--bg3);border-radius:8px;padding:8px 11px;margin-bottom:16px;">
+    <div style="font-size:12px;color:var(--text2);background:var(--bg3);border-radius:8px;padding:8px 11px;margin-bottom:10px;">
       📦 <strong>材料発注数</strong>＝材料屋さんに頼む数 ／ 🚚 <strong>納品数</strong>＝お客様に納める製品の数
     </div>
+    <div id="ws-product-info" style="margin-bottom:14px;"></div>
     <div id="ws-mat-area"></div>
     <div class="form-group" style="margin-bottom:14px;">
       <label>納期（空欄でもOK）</label>
@@ -1519,6 +1522,40 @@
       <button class="modal-close" onclick="closeModal('prod-detail-modal')">✕</button>
     </div>
     <div id="prod-detail-body" class="modal-body"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="merge-modal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title">🔀 会社を統合</div>
+      <button class="modal-close" onclick="closeModal('merge-modal')">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px;">
+      「統合される会社」のデータ（実績・製品の受注先名など）が全部「残す会社」の名前に書き換わって、会社は1つになります。<strong style="color:#dc2626;">元に戻せないので注意してください。</strong>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label>✅ 残す会社（この名前に統一される）</label>
+      <select id="merge-keep"></select>
+    </div>
+    <div class="form-group" style="margin-bottom:20px;">
+      <label>🔀 統合される会社（消える方）</label>
+      <select id="merge-remove"></select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('merge-modal')">キャンセル</button>
+      <button class="btn btn-danger btn-sm" onclick="executeMerge()">統合を実行</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="supplier-detail-modal">
+  <div class="modal" style="max-width:640px;">
+    <div class="modal-header">
+      <div class="modal-title" id="supd-title">取引先詳細</div>
+      <button class="modal-close" onclick="closeModal('supplier-detail-modal')">✕</button>
+    </div>
+    <div id="supd-body" class="modal-body"></div>
   </div>
 </div>
 
@@ -1552,16 +1589,34 @@
         </div>
       </div>
       <div class="form-group">
-        <label>担当者名</label>
-        <input type="text" id="sup-contact" placeholder="例：田中 一郎">
-      </div>
-      <div class="form-group">
-        <label>電話番号</label>
+        <label>代表電話</label>
         <input type="text" id="sup-tel" placeholder="例：06-1234-5678">
       </div>
+      <div class="form-group">
+        <label>FAX番号</label>
+        <input type="text" id="sup-fax" placeholder="例：06-1234-5679">
+      </div>
       <div class="form-group full">
-        <label>メールアドレス</label>
+        <label>メールアドレス（請求書送付先）</label>
         <input type="email" id="sup-email" placeholder="例：tanaka@example.com">
+      </div>
+      <div class="form-group full">
+        <label style="display:flex;justify-content:space-between;align-items:center;">担当者（複数OK）
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addSupContactRow()" style="white-space:nowrap;">＋ 担当者追加</button>
+        </label>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;font-size:13px;">
+            <thead><tr>
+              <th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">名前</th>
+              <th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">電話</th>
+              <th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">メール</th>
+              <th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">メモ</th>
+              <th style="background:transparent;width:40px;border-bottom:1px solid var(--border);"></th>
+            </tr></thead>
+            <tbody id="sup-contact-rows"></tbody>
+          </table>
+        </div>
+        <input type="hidden" id="sup-contact">
       </div>
       <div class="form-group">
         <label>郵便番号</label>
@@ -1581,6 +1636,87 @@
           <option value="20">20日締め</option>
           <option value="25">25日締め</option>
         </select>
+      </div>
+      <div class="form-group">
+        <label>支払日</label>
+        <select id="sup-payday">
+          <option value="">未設定</option>
+          <option value="5">5日払</option><option value="10">10日払</option>
+          <option value="15">15日払</option><option value="20">20日払</option>
+          <option value="25">25日払</option><option value="99">末日払</option>
+        </select>
+      </div>
+      <div class="form-group full" style="margin-top:6px;padding:8px 12px;background:var(--bg3);border-radius:8px;font-size:13px;font-weight:700;">🧾 インボイス・取引条件</div>
+      <div class="form-group full">
+        <label>適格請求書発行事業者番号（未登録なら空欄）</label>
+        <input type="text" id="sup-invoice" placeholder="例：T1234567890123">
+      </div>
+      <div class="form-group">
+        <label>支払い方法</label>
+        <select id="sup-paymethod">
+          <option value="">未設定</option>
+          <option value="振込">振込</option><option value="電子手形">電子手形</option>
+          <option value="現金">現金</option><option value="引き落とし">引き落とし</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>相殺の有無</label>
+        <select id="sup-offset">
+          <option value="">未設定</option>
+          <option value="有り">有り</option><option value="無し">無し</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>請求書の受取方法</label>
+        <select id="sup-billmethod">
+          <option value="">未設定</option>
+          <option value="メール（PDF）">メール（PDF）</option>
+          <option value="郵送">郵送</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>郵送先住所（郵送希望の場合）</label>
+        <input type="text" id="sup-billaddress" placeholder="会社住所と同じなら空欄でOK">
+      </div>
+      <div class="form-group full" style="margin-top:6px;padding:8px 12px;background:var(--bg3);border-radius:8px;font-size:13px;font-weight:700;">🏦 受取口座（相手の振込先）</div>
+      <div class="form-group">
+        <label>銀行名</label>
+        <input type="text" id="sup-bank" placeholder="例：三菱UFJ銀行">
+      </div>
+      <div class="form-group">
+        <label>支店名</label>
+        <input type="text" id="sup-branch" placeholder="例：大阪支店">
+      </div>
+      <div class="form-group">
+        <label>口座種別</label>
+        <select id="sup-acctype">
+          <option value="">未設定</option>
+          <option value="普通">普通</option><option value="当座">当座</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>口座番号</label>
+        <input type="text" id="sup-accnum" placeholder="例：1234567">
+      </div>
+      <div class="form-group full">
+        <label>口座名義（カナ）</label>
+        <input type="text" id="sup-accname" placeholder="例：カ）マルマルセイサクショ">
+      </div>
+      <div class="form-group">
+        <label>振込手数料相殺</label>
+        <select id="sup-feeoffset">
+          <option value="">未設定</option>
+          <option value="有り">有り</option><option value="無し">無し</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>手数料の補足（例：○円以下は相殺無し）</label>
+        <input type="text" id="sup-feenote" placeholder="あれば記入">
+      </div>
+      <div class="form-group full">
+        <label>振込以外の希望</label>
+        <input type="text" id="sup-otherpay" placeholder="なし／希望あり（内容）">
       </div>
       <div class="form-group full">
         <label>備考</label>
@@ -1913,7 +2049,32 @@ function showToast(msg, type='success') {
 
 // ===== NAVIGATION =====
 let currentSection = 'dashboard';
-function showSection(name) {
+// ページ履歴（戻るボタン用）
+window._navHistory = window._navHistory || [];
+function goBackSection(){
+  const prev = window._navHistory.pop();
+  if (prev) showSection(prev, true);
+  else showToast('これ以上戻れません');
+  const fab = document.getElementById('back-fab');
+  if (fab) fab.style.display = window._navHistory.length ? 'flex' : 'none';
+}
+function showSection(name, _isBack) {
+  // 今表示中のセクションを履歴に積む（戻る操作のときは積まない）
+  if (!_isBack) {
+    const cur = document.querySelector('.section.active');
+    if (cur && cur.id && cur.id.startsWith('sec-')) {
+      const curName = cur.id.slice(4);
+      if (curName !== name) {
+        window._navHistory.push(curName);
+        if (window._navHistory.length > 30) window._navHistory.shift();
+      }
+    }
+  }
+  // 戻るボタンの表示切替（履歴があるときだけ出す）
+  setTimeout(function(){
+    const fab = document.getElementById('back-fab');
+    if (fab) fab.style.display = window._navHistory.length ? 'flex' : 'none';
+  }, 0);
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('sec-' + name).classList.add('active');
@@ -2245,6 +2406,30 @@ function createWorksheet(id){
   document.getElementById('ws-info').textContent = `${p.fignum||''} / ${p.name||''}`;
   document.getElementById('ws-due').value = '';
   document.getElementById('ws-worker-note').value = p.workerNote || '';
+  // 製品情報パネル（単価・数量別テーブル・材料・外注・クレーム警告）
+  (function(){
+    const mats0 = _getMatsOf(p);
+    const claims = [...new Set([...(p.claims||[]).map(c=>c&&c.note), p.claimNote].filter(Boolean))];
+    let html = '';
+    if (claims.length) {
+      html += `<div style="background:#fef2f2;border:1.5px solid #dc2626;border-radius:8px;padding:9px 12px;margin-bottom:8px;">
+        <div style="font-size:12px;font-weight:700;color:#991b1b;margin-bottom:3px;">⚠ この製品は過去クレームあり</div>
+        ${claims.map(n=>`<div style="font-size:12px;color:#991b1b;">・${escapeHtml(n)}</div>`).join('')}
+      </div>`;
+    }
+    let priceHtml = '';
+    if (p.priceTable && p.priceTable.length) {
+      const rows = p.priceTable.slice().sort((a,b)=>a.qty-b.qty)
+        .map(r=>`${r.qty}個〜 ¥${fmt(r.price)}`).join('　／　');
+      priceHtml = `<div style="font-size:12px;"><strong>数量別単価：</strong>${rows}<span style="color:#2563eb;">（納品数に応じて自動適用）</span></div>`;
+    } else {
+      priceHtml = `<div style="font-size:12px;"><strong>製品単価：</strong>¥${fmt(p.price||0)}</div>`;
+    }
+    const matHtml = mats0.length ? `<div style="font-size:12px;margin-top:3px;"><strong>材料：</strong>${mats0.map(m=>[m.supplier,m.name,m.size].filter(Boolean).join(' ')).join('、')||'—'}</div>` : '';
+    const osHtml = (p.outsource&&p.outsource.length) ? `<div style="font-size:12px;margin-top:3px;"><strong>外注：</strong>${p.outsource.map(o=>`${o.name||''}${o.price?'（¥'+fmt(o.price)+(o.priceUnit==='total'?'/1式':'/個')+'）':''}`).join('、')}</div>` : '';
+    html += `<div style="background:var(--bg3);border-radius:8px;padding:9px 12px;">${priceHtml}${matHtml}${osHtml}</div>`;
+    document.getElementById('ws-product-info').innerHTML = html;
+  })();
 
   // 材料一覧（メイン＋追加）
   const mats = _getMatsOf(p);
@@ -2338,12 +2523,15 @@ function submitWorksheet(){
   // 作業員メモ：ここで書いた内容を製品マスタにも保存（次回から反映）
   const _wn = document.getElementById('ws-worker-note').value.trim();
   if (_wn !== (p.workerNote||'')) p.workerNote = _wn;
-  saveWorksheetRecord(p, qtys, prodQty, due);
+  // 数量別単価テーブルがあれば、納品数に応じた単価を自動適用（例：25個→10〜99の段）
+  const _lp = lookupPrice(p.priceTable, prodQty, p.price||0, p.matPrice||0);
+  const pw = Object.assign({}, p, { price: _lp.price });
+  saveWorksheetRecord(pw, qtys, prodQty, due);
   closeModal('worksheet-modal');
   closeModal('product-detail-modal');
   refreshAllViews();
   showToast('作業書を作成し、作業実績にも登録しました');
-  printWorksheet(p, qtys, prodQty, due);
+  printWorksheet(pw, qtys, prodQty, due);
 }
 
 // 全画面を再描画（データは productions 一本なので、これで全部揃う）
@@ -3964,6 +4152,110 @@ function toKatakana(str) {
   );
 }
 
+// ===== 会社統合 =====
+function openMergeModal(){
+  const opts = DB.companies.slice().sort((a,b)=>(a.kana||a.name).localeCompare(b.kana||b.name,'ja'))
+    .map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  document.getElementById('merge-keep').innerHTML = opts;
+  document.getElementById('merge-remove').innerHTML = opts;
+  openModal('merge-modal');
+}
+function executeMerge(){
+  const keepId = document.getElementById('merge-keep').value;
+  const removeId = document.getElementById('merge-remove').value;
+  if(!keepId || !removeId){ showToast('会社を選んでください','error'); return; }
+  if(keepId===removeId){ showToast('同じ会社は統合できません','error'); return; }
+  const keep = DB.companies.find(c=>c.id===keepId);
+  const rem = DB.companies.find(c=>c.id===removeId);
+  if(!keep||!rem) return;
+  if(!confirm(`「${rem.name}」を「${keep.name}」に統合します。\n実績・製品などの名前も全部書き換わります。\n\n本当に実行しますか？（元に戻せません）`)) return;
+
+  const oldName = rem.name, newName = keep.name;
+  let cnt = 0;
+  (DB.productions||[]).forEach(r=>{
+    if(r.client===oldName){ r.client=newName; cnt++; }
+    (r.materials||[]).forEach(m=>{ if(m.supplier===oldName){ m.supplier=newName; cnt++; } });
+    (r.outsourceInfo||[]).forEach(o=>{ if(o.name===oldName){ o.name=newName; cnt++; } });
+  });
+  (DB.products||[]).forEach(p=>{
+    if(p.client===oldName){ p.client=newName; cnt++; }
+    if(p.matSupplier===oldName){ p.matSupplier=newName; cnt++; }
+    (p.extraMaterials||[]).forEach(m=>{ if(m.supplier===oldName){ m.supplier=newName; cnt++; } });
+    (p.outsource||[]).forEach(o=>{ if(o.name===oldName){ o.name=newName; cnt++; } });
+  });
+  Object.keys(rem).forEach(k=>{
+    if(k==='id'||k==='name') return;
+    if(k==='types'){
+      keep.types = [...new Set([...(keep.types||[]), ...(rem.types||[])])];
+    } else if(k==='contacts'){
+      keep.contacts = [...(keep.contacts||[]), ...(rem.contacts||[])];
+    } else if(!keep[k] && rem[k]){
+      keep[k] = rem[k];
+    }
+  });
+  DB.companies = DB.companies.filter(c=>c.id!==removeId);
+  recordHistory('edit','supplier',`会社統合：${oldName} → ${newName}（${cnt}件書き換え）`,null,null);
+  save();
+  closeModal('merge-modal');
+  renderSuppliers();
+  updateDataLists();
+  refreshAllViews();
+  showToast(`統合完了：${cnt}件のデータを「${newName}」に書き換えました`);
+}
+
+// 取引先詳細（全項目ワンタップコピー）
+function showSupplierDetail(id){
+  const c = DB.companies.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('supd-title').textContent = c.name;
+  const row = (label, val) => val ? `
+    <div onclick="copyText('${escapeHtml(String(val)).replace(/'/g,"\\'")}')"
+         style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;"
+         title="タップでコピー">
+      <div style="min-width:130px;font-size:11px;color:var(--text2);font-weight:600;">${label}</div>
+      <div style="flex:1;font-size:14px;font-weight:600;word-break:break-all;">${escapeHtml(String(val))}</div>
+      <div style="font-size:14px;color:var(--text3);">📋</div>
+    </div>` : '';
+  const sec = (title,color) => `<div style="font-size:12px;font-weight:700;color:${color};background:var(--bg3);border-radius:6px;padding:6px 10px;margin:14px 0 4px;">${title}</div>`;
+  const CLOSING = c.closing ? c.closing+'日締め' : '末締め';
+  const PAYDAY = c.payday ? (c.payday==='99'?'末日払':c.payday+'日払') : '';
+
+  document.getElementById('supd-body').innerHTML = `
+    <div style="font-size:11px;color:var(--text2);margin-bottom:6px;">💡 各行をタップするとコピーできます</div>
+    ${sec('◆ 基本情報','#1e40af')}
+    ${row('会社名', c.name)}
+    ${row('郵便番号', c.zip)}
+    ${row('住所', c.address)}
+    ${row('電話番号', c.tel)}
+    ${row('FAX番号', c.fax)}
+    ${row('メール（請求書送付先）', c.email)}
+    ${(c.contacts&&c.contacts.length)?sec('◆ 担当者','#166534')+c.contacts.map(p=>
+      row('👤 '+(p.name||'担当者'), [p.tel,p.email,p.note].filter(Boolean).join(' ／ ')||p.name)
+    ).join(''):(c.contact?sec('◆ 担当者','#166534')+row('👤 担当者', c.contact):'')}
+    ${sec('◆ インボイス・取引条件','#6b21a8')}
+    ${row('登録番号', c.invoice || (c.invoice===''?'':''))}
+    ${row('締め日／支払日', CLOSING + (PAYDAY?'　'+PAYDAY:''))}
+    ${row('支払い方法', c.payMethod)}
+    ${row('相殺の有無', c.offset)}
+    ${sec('◆ 請求関連','#9a3412')}
+    ${row('請求書の受取方法', c.billMethod)}
+    ${row('郵送先住所', c.billAddress)}
+    ${sec('◆ 受取口座','#0e7490')}
+    ${row('銀行名', c.bank)}
+    ${row('支店名', c.branch)}
+    ${row('口座種別', c.accType)}
+    ${row('口座番号', c.accNum)}
+    ${row('口座名義（カナ）', c.accName)}
+    ${row('振込手数料相殺', c.feeOffset ? c.feeOffset + (c.feeNote?'（'+c.feeNote+'）':'') : '')}
+    ${row('振込以外の希望', c.otherPay)}
+    ${c.memo?sec('◆ 備考','#334155')+row('メモ', c.memo):''}
+    <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('supplier-detail-modal');editSupplier('${c.id}')">✏ 編集</button>
+    </div>
+  `;
+  openModal('supplier-detail-modal');
+}
+
 function renderSuppliers() {
   const q = (document.getElementById('sup-search')||{value:''}).value.toLowerCase();
   let list = DB.companies.filter(c=>{
@@ -3986,7 +4278,7 @@ function renderSuppliers() {
       <td class="hide-mobile">${c.tel?`${c.tel}${_copyBtn(c.tel)}`:'—'}</td>
       <td class="hide-mobile">${c.email?`<a href="mailto:${c.email}" style="color:var(--accent);font-size:12px;">${c.email}</a>${_copyBtn(c.email)}`:'—'}</td>
       <td style="white-space:nowrap;">
-        <button class="btn btn-ghost btn-xs" onclick="editSupplier('${c.id}')">編集</button>
+        <button class="btn btn-ghost btn-xs" onclick="showSupplierDetail('${c.id}')">詳細</button> <button class="btn btn-ghost btn-xs" onclick="editSupplier('${c.id}')">編集</button>
         <button class="btn btn-danger btn-xs" onclick="deleteSupplier('${c.id}')">削除</button>
       </td>
     </tr>
@@ -4003,7 +4295,9 @@ function deleteSupplier(id) {
 
 function openSupplierModal() {
   document.getElementById('sup-modal-title').textContent = '取引先追加';
-  ['sup-name','sup-kana','sup-contact','sup-tel','sup-email','sup-zip','sup-address','sup-memo','sup-closing'].forEach(id=>document.getElementById(id).value='');
+  ['sup-name','sup-kana','sup-contact','sup-tel','sup-email','sup-zip','sup-address','sup-memo','sup-closing','sup-fax','sup-payday','sup-invoice','sup-paymethod','sup-offset','sup-billmethod','sup-billaddress','sup-bank','sup-branch','sup-acctype','sup-accnum','sup-accname','sup-feeoffset','sup-feenote','sup-otherpay'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sup-contact-rows').innerHTML='';
+  addSupContactRow();
   ['sup-type-client','sup-type-material','sup-type-other'].forEach(id=>document.getElementById(id).checked=false);
   document.getElementById('sup-edit-id').value='';
   openModal('supplier-modal');
@@ -4022,11 +4316,54 @@ function editSupplier(id) {
   document.getElementById('sup-address').value = c.address||'';
   document.getElementById('sup-memo').value = c.memo||'';
   document.getElementById('sup-closing').value = c.closing||'';
+  document.getElementById('sup-fax').value = c.fax||'';
+  document.getElementById('sup-payday').value = c.payday||'';
+  document.getElementById('sup-invoice').value = c.invoice||'';
+  document.getElementById('sup-paymethod').value = c.payMethod||'';
+  document.getElementById('sup-offset').value = c.offset||'';
+  document.getElementById('sup-billmethod').value = c.billMethod||'';
+  document.getElementById('sup-billaddress').value = c.billAddress||'';
+  document.getElementById('sup-bank').value = c.bank||'';
+  document.getElementById('sup-branch').value = c.branch||'';
+  document.getElementById('sup-acctype').value = c.accType||'';
+  document.getElementById('sup-accnum').value = c.accNum||'';
+  document.getElementById('sup-accname').value = c.accName||'';
+  document.getElementById('sup-feeoffset').value = c.feeOffset||'';
+  document.getElementById('sup-feenote').value = c.feeNote||'';
+  document.getElementById('sup-otherpay').value = c.otherPay||'';
+  document.getElementById('sup-contact-rows').innerHTML = '';
+  const _cts = (c.contacts&&c.contacts.length) ? c.contacts : (c.contact ? [{name:c.contact,tel:'',email:'',note:''}] : []);
+  _cts.forEach(x=>addSupContactRow(x));
   document.getElementById('sup-type-client').checked = (c.types||[]).includes('client');
   document.getElementById('sup-type-material').checked = (c.types||[]).includes('material');
   document.getElementById('sup-type-other').checked = (c.types||[]).includes('other');
   document.getElementById('sup-edit-id').value = id;
   openModal('supplier-modal');
+}
+
+// 担当者行（複数）
+function addSupContactRow(data){
+  const tb=document.getElementById('sup-contact-rows');const tr=document.createElement('tr');tr.className='sup-contact-row';
+  tr.innerHTML=`<td><input type="text" class="sc-name" placeholder="田中 一郎" value="${escapeHtml(data&&data.name||'')}"></td>`
+    +`<td><input type="text" class="sc-tel" placeholder="090-..." value="${escapeHtml(data&&data.tel||'')}"></td>`
+    +`<td><input type="text" class="sc-email" placeholder="mail@..." value="${escapeHtml(data&&data.email||'')}"></td>`
+    +`<td><input type="text" class="sc-note" placeholder="役職・注意点など" value="${escapeHtml(data&&data.note||'')}"></td>`
+    +`<td style="text-align:center;"><button type="button" class="btn btn-ghost btn-xs" onclick="this.closest('tr').remove()" style="color:#dc2626;">×</button></td>`;
+  tb.appendChild(tr);
+}
+function getSupContacts(){
+  return [...document.querySelectorAll('#sup-contact-rows .sup-contact-row')].map(r=>({
+    name:r.querySelector('.sc-name').value.trim(),
+    tel:r.querySelector('.sc-tel').value.trim(),
+    email:r.querySelector('.sc-email').value.trim(),
+    note:r.querySelector('.sc-note').value.trim()
+  })).filter(c=>c.name||c.tel||c.email||c.note);
+}
+// ワンタップコピー
+function copyText(t){
+  if(!t){ showToast('コピーする内容がありません','error'); return; }
+  navigator.clipboard.writeText(t).then(()=>showToast('コピーしました：'+(t.length>20?t.slice(0,20)+'…':t)))
+    .catch(()=>showToast('コピーできませんでした','error'));
 }
 
 function saveSupplier() {
@@ -4038,13 +4375,29 @@ function saveSupplier() {
     name,
     kana: toHiragana(document.getElementById('sup-kana').value.trim()),
     types,
-    contact: document.getElementById('sup-contact').value.trim(),
+    contact: (getSupContacts()[0]||{}).name||'',
     tel: document.getElementById('sup-tel').value.trim(),
     email: document.getElementById('sup-email').value.trim(),
     zip: document.getElementById('sup-zip').value.trim(),
     address: document.getElementById('sup-address').value.trim(),
     memo: document.getElementById('sup-memo').value.trim(),
-    closing: document.getElementById('sup-closing').value
+    closing: document.getElementById('sup-closing').value,
+    fax: document.getElementById('sup-fax').value.trim(),
+    contacts: getSupContacts(),
+    payday: document.getElementById('sup-payday').value,
+    invoice: document.getElementById('sup-invoice').value.trim(),
+    payMethod: document.getElementById('sup-paymethod').value,
+    offset: document.getElementById('sup-offset').value,
+    billMethod: document.getElementById('sup-billmethod').value,
+    billAddress: document.getElementById('sup-billaddress').value.trim(),
+    bank: document.getElementById('sup-bank').value.trim(),
+    branch: document.getElementById('sup-branch').value.trim(),
+    accType: document.getElementById('sup-acctype').value,
+    accNum: document.getElementById('sup-accnum').value.trim(),
+    accName: document.getElementById('sup-accname').value.trim(),
+    feeOffset: document.getElementById('sup-feeoffset').value,
+    feeNote: document.getElementById('sup-feenote').value.trim(),
+    otherPay: document.getElementById('sup-otherpay').value.trim()
   };
   const editId = document.getElementById('sup-edit-id').value;
   let _hBefore = null, _hAction = 'add';
