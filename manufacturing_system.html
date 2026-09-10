@@ -4141,7 +4141,7 @@ function autoFillAddress(input) {
 function _copyBtn(text) {
   if (!text) return '';
   const escaped = text.replace(/'/g,"\\'");
-  return `<button onclick="quickCopy('${escaped}',this)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--text2);cursor:pointer;margin-left:4px;" title="コピー">📋</button>`;
+  return `<button onclick="event.stopPropagation();quickCopy('${escaped}',this)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;color:var(--text2);cursor:pointer;margin-left:4px;" title="コピー">📋</button>`;
 }
 function quickCopy(text, btn) {
   navigator.clipboard.writeText(text).then(()=>{
@@ -4275,7 +4275,7 @@ function renderSuppliers() {
   });
   document.getElementById('sup-count-label').textContent = `${DB.companies.length}社登録済み`;
   document.getElementById('company-tbody').innerHTML = list.length ? list.map(c=>`
-    <tr>
+    <tr onclick="showSupplierDetail('${c.id}')" style="cursor:pointer;">
       <td>
         <div style="font-weight:600;">${c.name}${_copyBtn(c.name)}</div>
         ${c.kana?`<div style="font-size:11px;color:var(--text3);">${c.kana}</div>`:''}
@@ -4285,8 +4285,8 @@ function renderSuppliers() {
       <td class="hide-mobile">${(c.types||[]).map(t=>`<span class="badge ${TYPE_BADGE[t]||'badge-yellow'}" style="margin-right:3px;">${TYPE_LABELS[t]||t}</span>`).join('')}</td>
       <td class="hide-mobile">${c.contact||'—'}</td>
       <td class="hide-mobile">${c.tel?`${c.tel}${_copyBtn(c.tel)}`:'—'}</td>
-      <td class="hide-mobile">${c.email?`<a href="mailto:${c.email}" style="color:var(--accent);font-size:12px;">${c.email}</a>${_copyBtn(c.email)}`:'—'}</td>
-      <td style="white-space:nowrap;">
+      <td class="hide-mobile">${c.email?`<a href="mailto:${c.email}" onclick="event.stopPropagation()" style="color:var(--accent);font-size:12px;">${c.email}</a>${_copyBtn(c.email)}`:'—'}</td>
+      <td style="white-space:nowrap;" onclick="event.stopPropagation()">
         <button class="btn btn-ghost btn-xs" onclick="showSupplierDetail('${c.id}')">詳細</button> <button class="btn btn-ghost btn-xs" onclick="editSupplier('${c.id}')">編集</button>
         <button class="btn btn-danger btn-xs" onclick="deleteSupplier('${c.id}')">削除</button>
       </td>
