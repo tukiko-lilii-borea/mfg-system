@@ -1550,7 +1550,7 @@
 </div>
 
 <div class="modal-overlay" id="supplier-detail-modal">
-  <div class="modal" style="max-width:640px;">
+  <div class="modal" style="max-width:820px;">
     <div class="modal-header">
       <div class="modal-title" id="supd-title">取引先詳細</div>
       <button class="modal-close" onclick="closeModal('supplier-detail-modal')">✕</button>
@@ -1560,7 +1560,7 @@
 </div>
 
 <div class="modal-overlay" id="supplier-modal">
-  <div class="modal" style="max-width:560px;">
+  <div class="modal" style="max-width:820px;">
     <div class="modal-header">
       <div class="modal-title" id="sup-modal-title">取引先追加</div>
       <button class="modal-close" onclick="closeModal('supplier-modal')">✕</button>
@@ -4219,46 +4219,41 @@ function showSupplierDetail(id){
   document.getElementById('supd-title').textContent = c.name;
   const row = (label, val) => val ? `
     <div onclick="copyText('${escapeHtml(String(val)).replace(/'/g,"\\'")}')"
-         style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer;"
+         style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer;"
          title="タップでコピー">
-      <div style="min-width:130px;font-size:11px;color:var(--text2);font-weight:600;">${label}</div>
-      <div style="flex:1;font-size:14px;font-weight:600;word-break:break-all;">${escapeHtml(String(val))}</div>
-      <div style="font-size:14px;color:var(--text3);">📋</div>
+      <div style="min-width:160px;font-size:12px;color:var(--text2);font-weight:600;">${label}</div>
+      <div style="flex:1;font-size:15px;font-weight:600;word-break:break-all;line-height:1.6;">${escapeHtml(String(val))}</div>
+      <div style="font-size:16px;color:var(--text3);">📋</div>
     </div>` : '';
-  const sec = (title,color) => `<div style="font-size:12px;font-weight:700;color:${color};background:var(--bg3);border-radius:6px;padding:6px 10px;margin:14px 0 4px;">${title}</div>`;
+  const sec = (title,color) => `<div style="font-size:13px;font-weight:700;color:${color};background:var(--bg3);border-radius:8px;padding:9px 14px;margin:20px 0 6px;">${title}</div>`;
+  // 中身がある場合だけセクションを出す
+  const grp = (title,color,rows) => rows ? sec(title,color)+rows : '';
   const CLOSING = c.closing ? c.closing+'日締め' : '末締め';
   const PAYDAY = c.payday ? (c.payday==='99'?'末日払':c.payday+'日払') : '';
 
+  const basicRows = row('会社名', c.name)+row('郵便番号', c.zip)+row('住所', c.address)
+    +row('電話番号', c.tel)+row('FAX番号', c.fax)+row('メール（請求書送付先）', c.email);
+  const contactRows = (c.contacts&&c.contacts.length)
+    ? c.contacts.map(p=>row('👤 '+(p.name||'担当者'), [p.tel,p.email,p.note].filter(Boolean).join(' ／ ')||p.name)).join('')
+    : (c.contact?row('👤 担当者', c.contact):'');
+  const invoiceRows = row('登録番号', c.invoice)
+    +row('締め日／支払日', CLOSING + (PAYDAY?'　'+PAYDAY:''))
+    +row('支払い方法', c.payMethod)+row('相殺の有無', c.offset);
+  const billRows = row('請求書の受取方法', c.billMethod)+row('郵送先住所', c.billAddress);
+  const bankRows = row('銀行名', c.bank)+row('支店名', c.branch)+row('口座種別', c.accType)
+    +row('口座番号', c.accNum)+row('口座名義（カナ）', c.accName)
+    +row('振込手数料相殺', c.feeOffset ? c.feeOffset + (c.feeNote?'（'+c.feeNote+'）':'') : '')
+    +row('振込以外の希望', c.otherPay);
+
   document.getElementById('supd-body').innerHTML = `
-    <div style="font-size:11px;color:var(--text2);margin-bottom:6px;">💡 各行をタップするとコピーできます</div>
-    ${sec('◆ 基本情報','#1e40af')}
-    ${row('会社名', c.name)}
-    ${row('郵便番号', c.zip)}
-    ${row('住所', c.address)}
-    ${row('電話番号', c.tel)}
-    ${row('FAX番号', c.fax)}
-    ${row('メール（請求書送付先）', c.email)}
-    ${(c.contacts&&c.contacts.length)?sec('◆ 担当者','#166534')+c.contacts.map(p=>
-      row('👤 '+(p.name||'担当者'), [p.tel,p.email,p.note].filter(Boolean).join(' ／ ')||p.name)
-    ).join(''):(c.contact?sec('◆ 担当者','#166534')+row('👤 担当者', c.contact):'')}
-    ${sec('◆ インボイス・取引条件','#6b21a8')}
-    ${row('登録番号', c.invoice || (c.invoice===''?'':''))}
-    ${row('締め日／支払日', CLOSING + (PAYDAY?'　'+PAYDAY:''))}
-    ${row('支払い方法', c.payMethod)}
-    ${row('相殺の有無', c.offset)}
-    ${sec('◆ 請求関連','#9a3412')}
-    ${row('請求書の受取方法', c.billMethod)}
-    ${row('郵送先住所', c.billAddress)}
-    ${sec('◆ 受取口座','#0e7490')}
-    ${row('銀行名', c.bank)}
-    ${row('支店名', c.branch)}
-    ${row('口座種別', c.accType)}
-    ${row('口座番号', c.accNum)}
-    ${row('口座名義（カナ）', c.accName)}
-    ${row('振込手数料相殺', c.feeOffset ? c.feeOffset + (c.feeNote?'（'+c.feeNote+'）':'') : '')}
-    ${row('振込以外の希望', c.otherPay)}
-    ${c.memo?sec('◆ 備考','#334155')+row('メモ', c.memo):''}
-    <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+    <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">💡 各行をタップするとコピーできます</div>
+    ${grp('◆ 基本情報','#1e40af', basicRows)}
+    ${grp('◆ 担当者','#166534', contactRows)}
+    ${grp('◆ インボイス・取引条件','#6b21a8', invoiceRows)}
+    ${grp('◆ 請求関連','#9a3412', billRows)}
+    ${grp('◆ 受取口座','#0e7490', bankRows)}
+    ${grp('◆ 備考','#334155', row('メモ', c.memo))}
+    <div style="display:flex;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('supplier-detail-modal');editSupplier('${c.id}')">✏ 編集</button>
     </div>
   `;
