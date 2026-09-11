@@ -514,17 +514,6 @@
 
       <div class="stats-grid" id="stats-grid"></div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;" class="dash-charts">
-        <div class="card">
-          <div class="card-title">月別売上（今年）</div>
-          <div class="chart-container" id="monthly-chart"></div>
-        </div>
-        <div class="card">
-          <div class="card-title">機械別稼働（今月）</div>
-          <div class="chart-container" id="machine-chart"></div>
-        </div>
-      </div>
-
       <div class="card">
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
           <span>📅 納期カレンダー</span>
@@ -536,6 +525,17 @@
         </div>
         <div id="due-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
         <div id="due-cal-day-list" style="margin-top:12px;"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;" class="dash-charts">
+        <div class="card">
+          <div class="card-title">月別売上（今年）</div>
+          <div class="chart-container" id="monthly-chart"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">機械別稼働（今月）</div>
+          <div class="chart-container" id="machine-chart"></div>
+        </div>
       </div>
 
       <div class="card">
@@ -2628,7 +2628,15 @@ function submitWorksheet(){
 
 // ===== 納期カレンダー（ダッシュボード） =====
 let _calY = null, _calM = null;
+function _calEnsure(){
+  if(!_calY || !_calM || _calY < 2000 || _calM < 1 || _calM > 12){
+    const n = new Date();
+    _calY = n.getFullYear();
+    _calM = n.getMonth()+1;
+  }
+}
 function calShift(d){
+  _calEnsure();
   _calM += d;
   if(_calM>12){ _calM=1; _calY++; }
   if(_calM<1){ _calM=12; _calY--; }
@@ -2637,7 +2645,7 @@ function calShift(d){
 function renderDueCalendar(){
   const grid = document.getElementById('due-cal-grid');
   if(!grid) return;
-  if(_calY===null){ const n=new Date(); _calY=n.getFullYear(); _calM=n.getMonth()+1; }
+  _calEnsure();
   document.getElementById('due-cal-label').textContent = `${_calY}年${_calM}月`;
   // 納期を日別に集計
   const map = {};
@@ -2658,7 +2666,7 @@ function renderDueCalendar(){
   for(let d=1;d<=days;d++){
     const cnt = (map[d]||[]).length;
     const isToday = isThisMonth && today.getDate()===d;
-    html += `<div onclick="${cnt?`calShowDay(${d})`:''}" style="min-height:52px;border:1px solid ${isToday?'var(--accent)':'var(--border)'};border-radius:8px;padding:4px 6px;${cnt?'cursor:pointer;background:#fff7ed;':''}${isToday?'box-shadow:0 0 0 1px var(--accent);':''}">
+    html += `<div onclick="${cnt?`calShowDay(${d})`:''}" style="min-height:52px;border:${isToday?'2.5px solid #2563eb':'1px solid var(--border)'};border-radius:8px;padding:4px 6px;${cnt?'cursor:pointer;background:#fff7ed;':(isToday?'background:#eff6ff;':'')}">
       <div style="font-size:11px;font-weight:${isToday?'700':'400'};color:${isToday?'var(--accent)':'var(--text2)'};">${d}</div>
       ${cnt?`<div style="font-size:12px;font-weight:700;color:#d97706;text-align:center;">${cnt}件</div>`:''}
     </div>`;
