@@ -444,8 +444,11 @@
       </div>
       <div class="nav-group">
         <div class="nav-label">分析・集計</div>
+        <div class="nav-item" onclick="showSection('sales-fiscal')">
+          <span class="nav-icon">💼</span>売上集計（決算）
+        </div>
         <div class="nav-item" onclick="showSection('sales')">
-          <span class="nav-icon">💰</span>売上集計
+          <span class="nav-icon">💰</span>売上集計（年）
         </div>
         <div class="nav-item" onclick="showSection('profit')">
           <span class="nav-icon">📈</span>利益レポート
@@ -502,9 +505,10 @@
     <!-- ===== 自社情報 ===== -->
     <section class="section" id="sec-mycompany">
       <div class="page-header">
-        <div><div class="page-title">🏠 自社情報</div><div class="page-subtitle">取引先に渡す会社情報。空欄の項目は印刷に出ません</div></div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-ghost btn-sm" onclick="printMyCompany()">🖨 印刷（お客様に渡す用）</button>
+        <div><div class="page-title">🏠 自社情報</div><div class="page-subtitle" id="mc-sub"></div></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="mc-select" onchange="mcSwitch(this.value)" style="width:180px;"></select>
+          <button class="btn btn-ghost btn-sm" onclick="mcAddCompany()">＋ 別会社を追加</button>
           <button class="btn btn-primary btn-sm" onclick="saveMyCompany()">💾 保存</button>
         </div>
       </div>
@@ -512,18 +516,29 @@
         <div class="form-grid-2">
           <div class="form-group"><label>会社名</label><input type="text" id="mc-name"></div>
           <div class="form-group"><label>代表者名</label><input type="text" id="mc-rep"></div>
+          <div class="form-group"><label>法人番号</label><input type="text" id="mc-corpnum" placeholder="13桁"></div>
+          <div class="form-group"><label>会社設立日</label><input type="text" id="mc-founded" placeholder="例：1998/4/1"></div>
+          <div class="form-group full"><label>HP（ホームページ）</label><input type="text" id="mc-hp" placeholder="https://..."></div>
           <div class="form-group"><label>郵便番号</label><input type="text" id="mc-zip"></div>
           <div class="form-group full"><label>住所</label><input type="text" id="mc-address"></div>
           <div class="form-group"><label>電話番号</label><input type="text" id="mc-tel"></div>
           <div class="form-group"><label>FAX番号</label><input type="text" id="mc-fax"></div>
           <div class="form-group full"><label>メールアドレス</label><input type="text" id="mc-email"></div>
           <div class="form-group full"><label>適格請求書発行事業者番号（インボイス）</label><input type="text" id="mc-invoice" placeholder="例：T1234567890123"></div>
-          <div class="form-group"><label>銀行名</label><input type="text" id="mc-bank"></div>
-          <div class="form-group"><label>支店名</label><input type="text" id="mc-branch"></div>
-          <div class="form-group"><label>口座種別</label><select id="mc-acctype"><option value="">未設定</option><option value="普通">普通</option><option value="当座">当座</option></select></div>
-          <div class="form-group"><label>口座番号</label><input type="text" id="mc-accnum"></div>
-          <div class="form-group full"><label>口座名義（カナ）</label><input type="text" id="mc-accname"></div>
-          <div class="form-group full"><label>備考（印刷にも出ます）</label><textarea id="mc-note" style="min-height:56px;"></textarea></div>
+          <div class="form-group"><label>締め日</label><select id="mc-closing"><option value="">末締め</option><option value="5">5日締め</option><option value="10">10日締め</option><option value="15">15日締め</option><option value="20">20日締め</option><option value="25">25日締め</option></select></div>
+          <div class="form-group full" style="margin-top:6px;padding:8px 12px;background:var(--bg3);border-radius:8px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center;">👤 担当者
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addMcContactRow()">＋ 担当者追加</button>
+          </div>
+          <div class="form-group full"><table style="width:100%;font-size:13px;"><thead><tr><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">名前</th><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">電話</th><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">メール</th><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">メモ</th><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);width:40px;"></th></tr></thead><tbody id="mc-contact-rows"></tbody></table></div>
+          <div class="form-group full" style="margin-top:6px;padding:8px 12px;background:var(--bg3);border-radius:8px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center;">🏦 銀行口座
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addMcBankRow()">＋ 銀行追加</button>
+          </div>
+          <div class="form-group full"><table style="width:100%;font-size:13px;"><thead><tr><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">銀行名</th><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">支店名</th><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">種別</th><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">口座番号</th><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">名義（カナ）</th><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);width:40px;"></th></tr></thead><tbody id="mc-bank-rows"></tbody></table></div>
+          <div class="form-group full" style="margin-top:6px;padding:8px 12px;background:var(--bg3);border-radius:8px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center;">🔗 資料リンク
+            <button type="button" class="btn btn-ghost btn-sm" onclick="addMcLinkRow()">＋ リンク追加</button>
+          </div>
+          <div class="form-group full"><table style="width:100%;font-size:13px;"><thead><tr><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);width:35%;">名前</th><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);">リンク（URL）</th><th style="background:transparent;font-size:12px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);width:40px;"></th></tr></thead><tbody id="mc-link-rows"></tbody></table></div>
+          <div class="form-group full"><label>備考</label><textarea id="mc-note" style="min-height:56px;"></textarea></div>
         </div>
       </div>
     </section>
@@ -1194,6 +1209,18 @@
     </section>
 
     <!-- ===== SALES ===== -->
+    <!-- ===== 売上集計（決算） ===== -->
+    <section class="section" id="sec-sales-fiscal">
+      <div class="page-header">
+        <div><div class="page-title">💼 売上集計（決算期）</div><div class="page-subtitle" id="sf-sub"></div></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="sf-year" onchange="sfSetYear(this.value)" style="width:190px;"></select>
+          <button class="btn btn-ghost btn-sm" onclick="setupFiscal()">⚙ 決算月の設定</button>
+        </div>
+      </div>
+      <div id="sf-body"></div>
+    </section>
+
     <section class="section" id="sec-sales">
       <div class="page-header">
         <div><div class="page-title">売上集計</div></div>
@@ -1682,6 +1709,10 @@
         <label>FAX番号</label>
         <input type="text" id="sup-fax" placeholder="例：06-1234-5679">
       </div>
+      <div class="form-group">
+        <label>支店・営業所</label>
+        <input type="text" id="sup-shiten" placeholder="例：大阪支店、東京営業所">
+      </div>
       <div class="form-group full">
         <label>メールアドレス（請求書送付先）</label>
         <input type="email" id="sup-email" placeholder="例：tanaka@example.com">
@@ -2042,6 +2073,7 @@ function load() {
     if (!DB.events) DB.events = [];
     if (!DB.memos) DB.memos = [];
     if (!DB.company) DB.company = {};
+    if (!DB.myCompanies) DB.myCompanies = [];
     // 旧receipts（受注データ）を実績へ一回だけ移行（データ一本化）
     if (DB.receipts.length) {
       DB.receipts.forEach(r=>{
@@ -2191,6 +2223,7 @@ function showSection(name, _isBack) {
   closeSidebar();
   if (name === 'dashboard') renderDashboard();
   if (name === 'mycompany') loadMyCompany();
+  if (name === 'sales-fiscal') renderSalesFiscal();
   if (name === 'dashboard') renderDueCalendar();
   if (name === 'dashboard') renderMemoBoard();
   if (name === 'products') renderProducts();
@@ -2241,46 +2274,122 @@ function getYears() {
 }
 
 // ===== DASHBOARD =====
-// ===== 自社情報 =====
-const MC_FIELDS = ['name','rep','zip','address','tel','fax','email','invoice','bank','branch','accType','accNum','accName','note'];
-const MC_IDS = {name:'mc-name',rep:'mc-rep',zip:'mc-zip',address:'mc-address',tel:'mc-tel',fax:'mc-fax',email:'mc-email',invoice:'mc-invoice',bank:'mc-bank',branch:'mc-branch',accType:'mc-acctype',accNum:'mc-accnum',accName:'mc-accname',note:'mc-note'};
+// ===== 自社情報（複数会社対応） =====
+let mcIdx = 0;
+const MC_FIELDS = ['name','rep','corpNum','founded','hp','zip','address','tel','fax','email','invoice','closing','note'];
+const MC_IDS = {name:'mc-name',rep:'mc-rep',corpNum:'mc-corpnum',founded:'mc-founded',hp:'mc-hp',zip:'mc-zip',address:'mc-address',tel:'mc-tel',fax:'mc-fax',email:'mc-email',invoice:'mc-invoice',closing:'mc-closing',note:'mc-note'};
+function _mcList(){
+  if(!DB.myCompanies || !DB.myCompanies.length){
+    DB.myCompanies = [Object.assign({}, DB.company||{})];
+  }
+  return DB.myCompanies;
+}
+function addMcContactRow(data){
+  const tb=document.getElementById('mc-contact-rows');const tr=document.createElement('tr');tr.className='mc-contact-row';
+  tr.innerHTML=`<td><input type="text" class="mcc-name" value="${escapeHtml(data&&data.name||'')}"></td><td><input type="text" class="mcc-tel" value="${escapeHtml(data&&data.tel||'')}"></td><td><input type="text" class="mcc-email" value="${escapeHtml(data&&data.email||'')}"></td><td><input type="text" class="mcc-note" value="${escapeHtml(data&&data.note||'')}"></td><td style="text-align:center;"><button type="button" class="btn btn-ghost btn-xs" onclick="this.closest('tr').remove()" style="color:#dc2626;">×</button></td>`;
+  tb.appendChild(tr);
+}
+function addMcBankRow(data){
+  const tb=document.getElementById('mc-bank-rows');const tr=document.createElement('tr');tr.className='mc-bank-row';
+  tr.innerHTML=`<td><input type="text" class="mcb-bank" value="${escapeHtml(data&&data.bank||'')}"></td><td><input type="text" class="mcb-branch" value="${escapeHtml(data&&data.branch||'')}"></td><td><select class="mcb-type"><option value=""${!(data&&data.type)?' selected':''}></option><option value="普通"${(data&&data.type)==='普通'?' selected':''}>普通</option><option value="当座"${(data&&data.type)==='当座'?' selected':''}>当座</option></select></td><td><input type="text" class="mcb-num" value="${escapeHtml(data&&data.num||'')}"></td><td><input type="text" class="mcb-name" value="${escapeHtml(data&&data.name||'')}"></td><td style="text-align:center;"><button type="button" class="btn btn-ghost btn-xs" onclick="this.closest('tr').remove()" style="color:#dc2626;">×</button></td>`;
+  tb.appendChild(tr);
+}
+function addMcLinkRow(data){
+  const tb=document.getElementById('mc-link-rows');const tr=document.createElement('tr');tr.className='mc-link-row';
+  tr.innerHTML=`<td><input type="text" class="mcl-name" placeholder="例：会社案内PDF" value="${escapeHtml(data&&data.name||'')}"></td><td><input type="text" class="mcl-url" placeholder="https://..." value="${escapeHtml(data&&data.url||'')}"></td><td style="text-align:center;"><button type="button" class="btn btn-ghost btn-xs" onclick="this.closest('tr').remove()" style="color:#dc2626;">×</button></td>`;
+  tb.appendChild(tr);
+}
 function loadMyCompany(){
-  MC_FIELDS.forEach(k=>{ const el=document.getElementById(MC_IDS[k]); if(el) el.value = DB.company[k]||''; });
+  const list=_mcList();
+  if(mcIdx>=list.length) mcIdx=0;
+  const sel=document.getElementById('mc-select');
+  sel.innerHTML=list.map((c,i)=>`<option value="${i}"${i===mcIdx?' selected':''}>${escapeHtml(c.name||('会社'+(i+1)))}</option>`).join('');
+  const c=list[mcIdx]||{};
+  MC_FIELDS.forEach(k=>{ const el=document.getElementById(MC_IDS[k]); if(el) el.value=c[k]||''; });
+  document.getElementById('mc-contact-rows').innerHTML=''; (c.contacts||[]).forEach(x=>addMcContactRow(x));
+  document.getElementById('mc-bank-rows').innerHTML=''; (c.banks||[]).forEach(x=>addMcBankRow(x));
+  document.getElementById('mc-link-rows').innerHTML=''; (c.links||[]).forEach(x=>addMcLinkRow(x));
+  document.getElementById('mc-sub').textContent = list.length>1 ? `${list.length}社登録中` : '';
+}
+function mcSwitch(v){ mcIdx=parseInt(v,10)||0; loadMyCompany(); }
+function mcAddCompany(){
+  const nm=prompt('追加する会社名を入力してください');
+  if(!nm) return;
+  _mcList().push({ name: nm.trim() });
+  mcIdx=_mcList().length-1;
+  save(); loadMyCompany();
+  showToast('会社を追加しました');
 }
 function saveMyCompany(){
-  MC_FIELDS.forEach(k=>{ const el=document.getElementById(MC_IDS[k]); if(el) DB.company[k] = el.value.trim(); });
+  const list=_mcList();
+  const c=list[mcIdx]||(list[mcIdx]={});
+  MC_FIELDS.forEach(k=>{ const el=document.getElementById(MC_IDS[k]); if(el) c[k]=el.value.trim(); });
+  c.contacts=[...document.querySelectorAll('#mc-contact-rows .mc-contact-row')].map(r=>({name:r.querySelector('.mcc-name').value.trim(),tel:r.querySelector('.mcc-tel').value.trim(),email:r.querySelector('.mcc-email').value.trim(),note:r.querySelector('.mcc-note').value.trim()})).filter(x=>x.name||x.tel||x.email||x.note);
+  c.banks=[...document.querySelectorAll('#mc-bank-rows .mc-bank-row')].map(r=>({bank:r.querySelector('.mcb-bank').value.trim(),branch:r.querySelector('.mcb-branch').value.trim(),type:r.querySelector('.mcb-type').value,num:r.querySelector('.mcb-num').value.trim(),name:r.querySelector('.mcb-name').value.trim()})).filter(x=>x.bank||x.num||x.name);
+  c.links=[...document.querySelectorAll('#mc-link-rows .mc-link-row')].map(r=>({name:r.querySelector('.mcl-name').value.trim(),url:r.querySelector('.mcl-url').value.trim()})).filter(x=>x.name||x.url);
+  // 1社目は決算期設定と同じDB.companyにも反映（既存の連動を維持）
+  if(mcIdx===0){ MC_FIELDS.forEach(k=>{ DB.company[k]=c[k]; }); }
   save();
+  loadMyCompany();
   showToast('自社情報を保存しました');
 }
-function printMyCompany(){
-  saveMyCompany();
-  const c = DB.company;
-  const row = (label,val)=> val ? `<tr><th>${label}</th><td>${escapeHtml(String(val))}</td></tr>` : '';
-  const bankLine = [c.bank,c.branch,c.accType,c.accNum].filter(Boolean).join('　');
-  const rows =
-    row('会社名', c.name) + row('代表者', c.rep) +
-    row('住所', (c.zip?('〒'+c.zip+'　'):'')+(c.address||'') ) +
-    row('電話番号', c.tel) + row('FAX番号', c.fax) + row('メール', c.email) +
-    row('インボイス登録番号', c.invoice) +
-    row('お振込先', bankLine) + row('口座名義（カナ）', c.accName) +
-    row('備考', c.note);
-  if(!rows){ showToast('印刷する情報がありません。まず入力してください','error'); return; }
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>会社情報　${escapeHtml(c.name||'')}</title><style>
-    body{font-family:'Yu Gothic','Meiryo',sans-serif;padding:30px;}
-    h1{font-size:19px;border-bottom:3px solid #1e3a5f;padding-bottom:8px;margin:0 0 20px;}
-    table{width:100%;border-collapse:collapse;font-size:14px;}
-    th{width:200px;background:#eef2f7;border:1px solid #8fa3bf;padding:11px 14px;text-align:left;font-size:13px;}
-    td{border:1px solid #8fa3bf;padding:11px 14px;font-weight:600;}
-    .foot{margin-top:20px;font-size:11px;color:#666;text-align:right;}
-    @page{size:A4;margin:18mm;}
-  </style></head><body>
-  <h1>会社情報のご案内</h1>
-  <table>${rows}</table>
-  <div class="foot">発行日：${new Date().getFullYear()}年${new Date().getMonth()+1}月${new Date().getDate()}日</div>
-  <script>window.print();<\/script></body></html>`;
-  const w=window.open('','_blank');
-  if(!w){ showToast('ポップアップがブロックされました','error'); return; }
-  w.document.write(html); w.document.close();
+
+// ===== 売上集計（決算期） =====
+let _sfY = null;
+function sfSetYear(v){ _sfY = parseInt(v,10); renderSalesFiscal(); }
+function renderSalesFiscal(){
+  const body=document.getElementById('sf-body');
+  if(!body) return;
+  const fm=DB.company.fiscalMonth;
+  if(!fm){
+    body.innerHTML = '<div class="card" style="text-align:center;padding:36px;"><div style="font-size:14px;margin-bottom:12px;">決算月がまだ設定されていません</div><button class="btn btn-primary btn-sm" onclick="setupFiscal()">⚙ 決算月と第1期を設定する</button></div>';
+    document.getElementById('sf-year').innerHTML='';
+    document.getElementById('sf-sub').textContent='';
+    return;
+  }
+  const set=new Set();
+  (DB.productions||[]).forEach(function(p){ const ym=_salesYM(p); if(ym) set.add(_fiscalYearOf(ym,fm)); });
+  const now=new Date();
+  const curFY=_fiscalYearOf({y:now.getFullYear(),m:now.getMonth()+1},fm);
+  set.add(curFY);
+  const years=Array.from(set).sort(function(a,b){return b-a;});
+  if(!_sfY || !set.has(_sfY)) _sfY=curFY;
+  const kiName=function(y){ return DB.company.firstFiscalYear ? ('第'+(y-DB.company.firstFiscalYear+1)+'期') : (y+'年期'); };
+  document.getElementById('sf-year').innerHTML = years.map(function(y){ return '<option value="'+y+'"'+(y===_sfY?' selected':'')+'>'+kiName(y)+'（〜'+y+'/'+fm+'月）</option>'; }).join('');
+  document.getElementById('sf-sub').textContent = (_sfY-1)+'年'+(fm+1>12?1:fm+1)+'月 〜 '+_sfY+'年'+fm+'月（'+fm+'月決算）';
+  const months=[]; for(let k=1;k<=12;k++){ months.push((fm+k-1)%12+1); }
+  const perMonth={}; months.forEach(function(m){ perMonth[m]={sales:0,cnt:0}; });
+  const perClient={};
+  let total=0, totalCnt=0;
+  (DB.productions||[]).forEach(function(p){
+    const ym=_salesYM(p);
+    if(!ym || _fiscalYearOf(ym,fm)!==_sfY) return;
+    const s=_recSales(p);
+    perMonth[ym.m].sales+=s; perMonth[ym.m].cnt++;
+    const c=p.client||'（受注先なし）';
+    if(!perClient[c]) perClient[c]={sales:0,cnt:0};
+    perClient[c].sales+=s; perClient[c].cnt++;
+    total+=s; totalCnt++;
+  });
+  const maxM=Math.max.apply(null, months.map(function(m){return perMonth[m].sales;}).concat([1]));
+  const clients=Object.entries(perClient).sort(function(a,b){return b[1].sales-a[1].sales;});
+  let mrows='';
+  months.forEach(function(m){
+    const d=perMonth[m];
+    mrows+='<tr><td style="white-space:nowrap;font-weight:600;">'+m+'月</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(d.sales)+'</td><td style="text-align:right;">'+d.cnt+'件</td><td><div style="height:14px;border-radius:4px;background:'+(d.sales?'#9333ea':'var(--bg3)')+';width:'+Math.max(d.sales/maxM*100,d.sales?2:1)+'%;"></div></td></tr>';
+  });
+  let crows='';
+  clients.forEach(function(e){
+    const c=e[0], d=e[1];
+    crows+='<tr onclick="jumpToProduction(\''+c.replace(/'/g,"\\'")+'\')" style="cursor:pointer;"><td>'+escapeHtml(c)+'</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(d.sales)+'</td><td style="text-align:right;">'+d.cnt+'件</td><td style="text-align:right;">'+(total?(d.sales/total*100).toFixed(1):'0.0')+'%</td></tr>';
+  });
+  if(!crows) crows='<tr><td colspan="4" style="text-align:center;color:var(--text3);">データがありません</td></tr>';
+  body.innerHTML = '<div class="stats-grid" style="grid-template-columns:repeat(2,1fr);">'
+    +'<div class="stat-card purple"><div class="stat-label">'+kiName(_sfY)+' 売上合計</div><div class="stat-value">¥'+fmt(total)+'</div><div class="stat-sub">'+totalCnt+'件</div></div>'
+    +'<div class="stat-card blue"><div class="stat-label">月平均</div><div class="stat-value">¥'+fmt(Math.round(total/12))+'</div><div class="stat-sub">12ヶ月換算</div></div>'
+    +'</div>'
+    +'<div class="card" style="margin-bottom:20px;"><div class="card-title">月別売上（'+kiName(_sfY)+'）</div><div class="table-wrap"><table style="width:100%;font-size:13px;"><thead><tr><th>月</th><th style="text-align:right;">売上</th><th style="text-align:right;">件数</th><th style="width:45%;"></th></tr></thead><tbody>'+mrows+'</tbody></table></div></div>'
+    +'<div class="card"><div class="card-title">会社別売上（'+kiName(_sfY)+'）</div><div class="table-wrap"><table style="width:100%;font-size:13px;"><thead><tr><th>受注先</th><th style="text-align:right;">売上</th><th style="text-align:right;">件数</th><th style="text-align:right;">構成比</th></tr></thead><tbody>'+crows+'</tbody></table></div></div>';
 }
 
 // ===== 決算期（自社設定） =====
@@ -2305,7 +2414,7 @@ function _fiscalYearOf(ym, fm){
 function _fiscalCard(){
   const fm = DB.company.fiscalMonth;
   if(!fm){
-    return `<div class="stat-card purple" onclick="setupFiscal()" style="cursor:pointer;"><div class="stat-label">決算期売上（未設定）</div><div class="stat-value" style="font-size:15px;">タップして設定</div><div class="stat-sub">決算月と第1期を登録</div></div>`;
+    return `<div class="stat-card purple" onclick="showSection('sales-fiscal')" style="cursor:pointer;"><div class="stat-label">決算期売上（未設定）</div><div class="stat-value" style="font-size:15px;">タップして設定</div><div class="stat-sub">決算月と第1期を登録</div></div>`;
   }
   const now = new Date();
   const nowYM = { y: now.getFullYear(), m: now.getMonth()+1 };
@@ -2317,7 +2426,7 @@ function _fiscalCard(){
   });
   const ki = DB.company.firstFiscalYear ? (curFY - DB.company.firstFiscalYear + 1) : null;
   const label = (ki?`第${ki}期`:'今期') + `売上（${fm}月決算）`;
-  return `<div class="stat-card purple" onclick="setupFiscal()" style="cursor:pointer;" title="タップで決算期の設定を変更"><div class="stat-label">${label}</div><div class="stat-value">¥${fmt(sales)}</div><div class="stat-sub">${cnt}件　${curFY-1}/${fm+1>12?1:fm+1}月〜${curFY}/${fm}月</div></div>`;
+  return `<div class="stat-card purple" onclick="showSection('sales-fiscal')" style="cursor:pointer;" title="クリックで決算期の売上集計へ"><div class="stat-label">${label}</div><div class="stat-value">¥${fmt(sales)}</div><div class="stat-sub">${cnt}件　${curFY-1}/${fm+1>12?1:fm+1}月〜${curFY}/${fm}月</div></div>`;
 }
 
 function renderDashboard() {
@@ -4556,7 +4665,7 @@ function showSupplierDetail(id){
   const CLOSING = c.closing ? c.closing+'日締め' : '末締め';
   const PAYDAY = c.payday ? (c.payday==='99'?'末日払':c.payday+'日払') : '';
 
-  const basicRows = row('会社名', c.name)+row('郵便番号', c.zip)+row('住所', c.address)
+  const basicRows = row('会社名', c.name)+row('支店・営業所', c.shiten)+row('郵便番号', c.zip)+row('住所', c.address)
     +row('電話番号', c.tel)+row('FAX番号', c.fax)+row('メール（請求書送付先）', c.email);
   const contactRows = (c.contacts&&c.contacts.length)
     ? c.contacts.map(p=>row('👤 '+(p.name||'担当者'), [p.tel,p.email,p.note].filter(Boolean).join(' ／ ')||p.name)).join('')
@@ -4662,7 +4771,7 @@ function deleteSupplier(id) {
 
 function openSupplierModal() {
   document.getElementById('sup-modal-title').textContent = '取引先追加';
-  ['sup-name','sup-kana','sup-contact','sup-tel','sup-email','sup-zip','sup-address','sup-memo','sup-closing','sup-fax','sup-payday','sup-invoice','sup-paymethod','sup-offset','sup-billmethod','sup-billaddress','sup-bank','sup-branch','sup-acctype','sup-accnum','sup-accname','sup-feeoffset','sup-feenote','sup-otherpay'].forEach(id=>document.getElementById(id).value='');
+  ['sup-name','sup-kana','sup-contact','sup-tel','sup-email','sup-zip','sup-address','sup-memo','sup-closing','sup-fax','sup-payday','sup-invoice','sup-paymethod','sup-offset','sup-billmethod','sup-billaddress','sup-bank','sup-branch','sup-acctype','sup-accnum','sup-accname','sup-feeoffset','sup-feenote','sup-otherpay','sup-shiten'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('sup-contact-rows').innerHTML='';
   addSupContactRow();
   document.getElementById('sup-link-rows').innerHTML='';
@@ -4685,6 +4794,7 @@ function editSupplier(id) {
   document.getElementById('sup-memo').value = c.memo||'';
   document.getElementById('sup-closing').value = c.closing||'';
   document.getElementById('sup-fax').value = c.fax||'';
+  document.getElementById('sup-shiten').value = c.shiten||'';
   document.getElementById('sup-payday').value = c.payday||'';
   document.getElementById('sup-invoice').value = c.invoice||'';
   document.getElementById('sup-paymethod').value = c.payMethod||'';
@@ -4768,6 +4878,7 @@ function saveSupplier() {
     memo: document.getElementById('sup-memo').value.trim(),
     closing: document.getElementById('sup-closing').value,
     fax: document.getElementById('sup-fax').value.trim(),
+    shiten: document.getElementById('sup-shiten').value.trim(),
     contacts: getSupContacts(),
     payday: document.getElementById('sup-payday').value,
     invoice: document.getElementById('sup-invoice').value.trim(),
