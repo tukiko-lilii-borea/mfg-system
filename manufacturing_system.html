@@ -34,7 +34,7 @@
   /* Layout */
   .app { display: flex; min-height: 100vh; }
   .sidebar { width: 220px; background: #1e293b; border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100; transition: transform 0.3s; }
-  .main { margin-left: 220px; flex: 1; padding: 24px; min-height: 100vh; }
+  .main { margin-left: 220px; flex: 1; padding: 24px 24px 110px; min-height: 100vh; }
   .logo { padding: 20px 16px 16px; border-bottom: 1px solid var(--border); }
   .logo h1 { font-size: 13px; font-weight: 700; color: #60a5fa; letter-spacing: 1px; text-transform: uppercase; }
   .logo p { font-size: 10px; color: #94a3b8; margin-top: 2px; }
@@ -56,10 +56,11 @@
   .card-title { font-size: 13px; color: var(--text2); margin-bottom: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
 
   /* Stats */
-  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 24px; }
   .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--card-radius); padding: 18px 20px; position: relative; overflow: hidden; }
   .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
   .stat-card.blue::before { background: var(--accent); }
+    .stat-card.purple::before { background: #9333ea; }
   .stat-card.green::before { background: var(--accent2); }
   .stat-card.red::before { background: var(--accent3); }
   .stat-card.yellow::before { background: var(--accent4); }
@@ -461,9 +462,6 @@
         <div class="nav-item" onclick="showSection('profit')">
           <span class="nav-icon">📈</span>利益レポート
         </div>
-        <div class="nav-item" onclick="showSection('delivery')">
-          <span class="nav-icon">🚚</span>納期管理
-        </div>
       </div>
       <div class="nav-group">
         <div class="nav-label">マスタ</div>
@@ -492,7 +490,7 @@
   <!-- Main -->
   <main class="main">
     <button id="back-fab" onclick="goBackSection()" title="前のページに戻る"
-      style="position:fixed;left:18px;bottom:18px;z-index:900;padding:13px 22px;border-radius:999px;border:none;background:#2563eb;color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(37,99,235,0.45);display:none;align-items:center;gap:6px;">← 戻る</button>
+      style="position:fixed;left:238px;bottom:18px;z-index:900;padding:13px 22px;border-radius:999px;border:none;background:#2563eb;color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(37,99,235,0.45);display:none;align-items:center;gap:6px;">← 戻る</button>
     <div class="mobile-header">
       <button class="menu-btn" onclick="toggleSidebar()">☰</button>
       <span style="font-weight:700;">⚙ 製造管理</span>
@@ -1198,28 +1196,7 @@
       </div>
     </section>
 
-    <!-- ===== 納期管理 ===== -->
-    <section class="section" id="sec-delivery">
-      <div class="page-header">
-        <div><div class="page-title">納期管理</div><div class="page-sub">何月何日に何があるか、納期順に表示。納期はここで直接変更できます</div></div>
-      </div>
-      <div class="card">
-        <div id="dl-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;"></div>
-        <div class="table-wrap">
-          <table style="width:100%;">
-            <thead><tr>
-              <th style="white-space:nowrap;">納期（編集可）</th>
-              <th style="white-space:nowrap;">残り</th>
-              <th style="white-space:nowrap;">発注先</th>
-              <th style="white-space:nowrap;">図番 / 品名</th>
-              <th style="white-space:nowrap;text-align:right;">数量</th>
-              <th style="white-space:nowrap;"></th>
-            </tr></thead>
-            <tbody id="dl-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
+
 
     <!-- ===== PROFIT REPORT ===== -->
     <section class="section" id="sec-profit">
@@ -2184,7 +2161,6 @@ function showSection(name, _isBack) {
   if (name === 'dashboard') renderDueCalendar();
   if (name === 'dashboard') renderMemoBoard();
   if (name === 'products') renderProducts();
-  if (name === 'delivery') renderDelivery();
   if (name === 'product-form') {
     if(!document.querySelector('#material-rows .material-row')) addMaterialRow();
     if(!document.querySelector('#outsource-rows .outsource-row')) addOutsourceRow();
@@ -2720,7 +2696,7 @@ function renderDueCalendar(){
   const days = new Date(_calY,_calM,0).getDate();
   const today = new Date();
   const isThisMonth = today.getFullYear()===_calY && today.getMonth()+1===_calM;
-  let html = ['日','月','火','水','木','金','土'].map((w,i)=>`<div style="text-align:center;font-size:11px;font-weight:700;color:${i===0?'#dc2626':i===6?'#2563eb':'var(--text2)'};padding:3px 0;">${w}</div>`).join('');
+  let html = ['日','月','火','水','木','金','土'].map((w,i)=>`<div style="text-align:center;font-size:14px;font-weight:700;color:${i===0?'#dc2626':i===6?'#2563eb':'var(--text)'};padding:5px 0;background:var(--bg3);border-radius:6px;">${w}</div>`).join('');
   for(let i=0;i<first;i++) html += '<div></div>';
   for(let d=1;d<=days;d++){
     const cnt = (map[d]||[]).length;
@@ -2840,7 +2816,6 @@ function refreshAllViews(){
   try { if (typeof renderProduction === 'function') renderProduction(); } catch(e){}
   try { if (typeof renderSales === 'function') renderSales(); } catch(e){}
   try { if (typeof renderProfit === 'function') renderProfit(); } catch(e){}
-  try { if (typeof renderDelivery === 'function' && document.getElementById('dl-tbody')) renderDelivery(); } catch(e){}
   try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){}
   try { if (typeof renderDueCalendar === 'function') renderDueCalendar(); } catch(e){}
   try { if (typeof renderMemoBoard === 'function') renderMemoBoard(); } catch(e){}
@@ -3186,65 +3161,6 @@ function _prodDate(r){
 // 実績1件の売上・原価
 function _recSales(r){ return (r.price||0) * (r.qty||0); }
 function _recCost(r){ return (r.matPrice||0) * (r.qty||0) + (r.osCost||0); }
-
-function renderDelivery(){
-  // 納期があるレコード全部を納期順に（何月何日に何があるかを見る画面）
-  let list = (DB.productions||[]).filter(r=>r.due);
-  list.sort((a,b)=>{
-    const da=_parseDue(a.due), db_=_parseDue(b.due);
-    if(!da && !db_) return 0;
-    if(!da) return 1;
-    if(!db_) return -1;
-    return da-db_;
-  });
-
-  let over=0, soon=0, later=0;
-  list.forEach(r=>{
-    const dl=_daysLeft(_parseDue(r.due));
-    if(dl===null) return;
-    if(dl<0) over++; else if(dl<=7) soon++; else later++;
-  });
-  document.getElementById('dl-summary').innerHTML =
-    _mcard('期限切れ', over+' 件', over?'#dc2626':'') +
-    _mcard('7日以内', soon+' 件', soon?'#d97706':'') +
-    _mcard('8日以降', later+' 件') +
-    _mcard('納期あり合計', list.length+' 件');
-
-  document.getElementById('dl-tbody').innerHTML = list.length ? list.map(r=>{
-    const dt=_parseDue(r.due);
-    const dl=_daysLeft(dt);
-    let left='—', color='';
-    if(dl!==null){
-      if(dl<0){ left=`${-dl}日超過`; color='color:#dc2626;font-weight:700;'; }
-      else if(dl===0){ left='今日'; color='color:#dc2626;font-weight:700;'; }
-      else if(dl<=7){ left=`あと${dl}日`; color='color:#d97706;font-weight:700;'; }
-      else left=`あと${dl}日`;
-    }
-    return `<tr>
-      <td style="white-space:nowrap;">
-        <input type="text" value="${escapeHtml(r.due||'')}" onchange="updateDue('${r.id}', this.value)" style="max-width:120px;font-size:14px;" title="納期を直接編集できます（例：2026/9/7）">
-      </td>
-      <td style="white-space:nowrap;${color}">${left}</td>
-      <td style="white-space:nowrap;">${escapeHtml(r.client||'—')}</td>
-      <td>${r.fignum?`<span class="badge badge-blue">${escapeHtml(r.fignum)}</span> `:''}${escapeHtml(r.name||'')}</td>
-      <td style="text-align:right;white-space:nowrap;">${r.qty} 個</td>
-      <td style="white-space:nowrap;">
-        <button class="btn btn-ghost btn-xs" onclick="showProdDetail('${r.id}')">詳細</button>
-        <button class="btn btn-ghost btn-xs" onclick="editProduction('${r.id}')">編集</button>
-      </td>
-    </tr>`;
-  }).join('') : '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🚚</div><div class="empty-text">納期が設定された実績はありません</div></div></td></tr>';
-}
-
-// 納期をインライン更新（全画面連動）
-function updateDue(id, val){
-  const r = (DB.productions||[]).find(x=>x.id===id);
-  if(!r) return;
-  r.due = (val||'').trim();
-  save();
-  refreshAllViews();
-  showToast('納期を更新しました（全画面に反映）');
-}
 
 function showProductDetail(id) {
   const p = DB.products.find(x=>x.id===id);
@@ -3653,7 +3569,7 @@ function filterProduction(q) {
     _mcard('利益','¥'+fmt(sales-cost),'#059669');
 
   document.getElementById('prod-tbody').innerHTML = prods.length ? prods.map(p=>`
-    <tr>
+    <tr onclick="showProdDetail('${p.id}')" style="cursor:pointer;">
       <td style="white-space:nowrap;">${fmtDate(p.date)}</td>
       <td class="hide-mobile" style="white-space:nowrap;">${escapeHtml(p.due||'—')}</td>
       <td>${p.machine||'—'}</td>
@@ -3664,7 +3580,7 @@ function filterProduction(q) {
       <td class="hide-mobile" style="white-space:nowrap;">${fmtDuration(stepsToSeconds(p.steps))}</td>
       <td style="white-space:nowrap;">¥${fmt(_recSales(p))}</td>
       <td class="hide-mobile" style="white-space:nowrap;font-weight:700;color:#059669;">¥${fmt(_recSales(p)-_recCost(p))}</td>
-      <td style="white-space:nowrap;">
+      <td style="white-space:nowrap;" onclick="event.stopPropagation()">
         <button class="btn btn-ghost btn-xs" onclick="showProdDetail('${p.id}')">詳細</button>
         <button class="btn btn-ghost btn-xs" onclick="editProduction('${p.id}')">編集</button>
         <button class="btn btn-ghost btn-xs" onclick="deleteProd('${p.id}')" style="color:#dc2626;">削除</button>
@@ -6927,7 +6843,7 @@ document.documentElement.style.setProperty('font-size','17px');
     if(document.getElementById('od-quick-bar'))return;
     var bar=document.createElement('div');
     bar.id='od-quick-bar';
-    bar.style.cssText='position:fixed;top:56px;right:16px;z-index:9999;display:flex;gap:6px;align-items:center;';
+    bar.style.cssText='position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;gap:6px;align-items:center;background:var(--bg2);border:1.5px solid #334e7c;border-radius:999px;padding:6px 10px;box-shadow:0 4px 14px rgba(0,0,0,0.15);';
     bar.innerHTML=
       '<span id="od-status" style="font-size:11px;color:#475569;font-weight:600;margin-right:4px;min-width:80px;text-align:right;"></span>'+
       '<button type="button" id="od-quick-save" style="font-size:12px;padding:4px 10px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:background 0.2s,color 0.2s;">☁️保存</button>'+
