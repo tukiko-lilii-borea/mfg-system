@@ -52,7 +52,7 @@
   .page-subtitle { font-size: 13px; color: var(--text2); margin-top: 2px; }
 
   /* Cards */
-  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--card-radius); padding: 20px; }
+  .card { background: var(--bg2); border: 1.5px solid #334e7c; border-radius: var(--card-radius); padding: 20px; }
   .card-title { font-size: 13px; color: var(--text2); margin-bottom: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
 
   /* Stats */
@@ -531,7 +531,7 @@
       <div class="card" style="margin-bottom:26px;">
         <div class="card-title">📝 伝言板</div>
         <div style="display:flex;gap:6px;margin-bottom:10px;">
-          <input type="text" id="memo-input" placeholder="例：加藤鋼材に月曜TEL、請求書9/25まで" style="flex:1;" onkeydown="if(event.key==='Enter'){addMemo();}">
+          <input type="text" id="memo-input" style="flex:1;" onkeydown="if(event.key==='Enter'){addMemo();}">
           <button class="btn btn-primary btn-sm" onclick="addMemo()">＋ 追加</button>
         </div>
         <div id="memo-board-list"></div>
@@ -2687,7 +2687,8 @@ function renderDueCalendar(){
     const cnt = (map[d]||[]).length;
     const isToday = isThisMonth && today.getDate()===d;
     const ev = (DB.events||[]).filter(e=>e.date===`${_calY}-${String(_calM).padStart(2,'0')}-${String(d).padStart(2,'0')}`).length;
-    html += `<div onclick="calShowDay(${d})" style="min-height:52px;border:${isToday?'2.5px solid #2563eb':'1px solid var(--border)'};border-radius:8px;padding:4px 6px;cursor:pointer;${cnt?'background:#fff7ed;':(isToday?'background:#eff6ff;':'')}">
+    const isRed = ((first+d-1)%7===0) || _isHoliday(_calY,_calM,d);
+    html += `<div onclick="calShowDay(${d})" style="min-height:52px;border:${isToday?'2.5px solid #2563eb':(isRed?'1.5px solid #fca5a5':'1px solid var(--border)')};border-radius:8px;padding:4px 6px;cursor:pointer;${cnt?'background:#fff7ed;':(isToday?'background:#eff6ff;':(isRed?'background:#fef2f2;':''))}">
       <div style="font-size:11px;font-weight:${isToday?'700':'400'};color:${(((first+d-1)%7===0)||_isHoliday(_calY,_calM,d))?'#dc2626':((first+d-1)%7===6)?'#2563eb':(isToday?'var(--accent)':'var(--text2)')};">${d}</div>
       ${cnt?`<div style="font-size:12px;font-weight:700;color:#d97706;text-align:center;">${cnt}件</div>`:''}
       ${ev?`<div style="font-size:10px;color:#2563eb;text-align:center;">📝${ev}</div>`:''}
