@@ -524,8 +524,8 @@
             <button class="btn btn-ghost btn-xs" onclick="printDueList()">🖨 印刷</button>
           </span>
         </div>
-        <div id="due-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
-        <div id="due-cal-day-list" style="margin-top:12px;"></div>
+        <div id="due-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;max-width:980px;margin:0 auto;"></div>
+        <div id="due-cal-day-list" style="margin-top:12px;max-width:980px;margin-left:auto;margin-right:auto;"></div>
       </div>
 
       <div class="card" style="margin-bottom:26px;">
@@ -2032,6 +2032,7 @@ function load() {
     if (!DB.receipts) DB.receipts = [];
     if (!DB.events) DB.events = [];
     if (!DB.memos) DB.memos = [];
+    if (!DB.company) DB.company = {};
     // 旧receipts（受注データ）を実績へ一回だけ移行（データ一本化）
     if (DB.receipts.length) {
       DB.receipts.forEach(r=>{
@@ -2231,6 +2232,43 @@ function getYears() {
 }
 
 // ===== DASHBOARD =====
+// ===== 決算期（自社設定） =====
+function setupFiscal(){
+  const fm = prompt('決算月を入力してください（1〜12）\n例：8月決算なら 8', DB.company.fiscalMonth||'');
+  if(fm===null) return;
+  const m = parseInt(fm,10);
+  if(!(m>=1&&m<=12)){ showToast('1〜12で入力してください','error'); return; }
+  const fy = prompt('第1期の決算年を入力してください\n例：2015年8月末が第1期の決算なら 2015', DB.company.firstFiscalYear||'');
+  if(fy===null) return;
+  const y = parseInt(fy,10);
+  if(!(y>1950&&y<2100)){ showToast('年を正しく入力してください','error'); return; }
+  DB.company.fiscalMonth = m;
+  DB.company.firstFiscalYear = y;
+  save(); renderDashboard();
+  showToast('決算期を設定しました');
+}
+// 実績の売上月が属する「決算年」（決算月で締まる年度の、決算する年）
+function _fiscalYearOf(ym, fm){
+  return ym.m <= fm ? ym.y : ym.y + 1;
+}
+function _fiscalCard(){
+  const fm = DB.company.fiscalMonth;
+  if(!fm){
+    return `<div class="stat-card purple" onclick="setupFiscal()" style="cursor:pointer;"><div class="stat-label">決算期売上（未設定）</div><div class="stat-value" style="font-size:15px;">タップして設定</div><div class="stat-sub">決算月と第1期を登録</div></div>`;
+  }
+  const now = new Date();
+  const nowYM = { y: now.getFullYear(), m: now.getMonth()+1 };
+  const curFY = _fiscalYearOf(nowYM, fm);
+  let sales=0, cnt=0;
+  (DB.productions||[]).forEach(p=>{
+    const ym=_salesYM(p);
+    if(ym && _fiscalYearOf(ym,fm)===curFY){ sales+=_recSales(p); cnt++; }
+  });
+  const ki = DB.company.firstFiscalYear ? (curFY - DB.company.firstFiscalYear + 1) : null;
+  const label = (ki?`第${ki}期`:'今期') + `売上（${fm}月決算）`;
+  return `<div class="stat-card purple" onclick="setupFiscal()" style="cursor:pointer;" title="タップで決算期の設定を変更"><div class="stat-label">${label}</div><div class="stat-value">¥${fmt(sales)}</div><div class="stat-sub">${cnt}件　${curFY-1}/${fm+1>12?1:fm+1}月〜${curFY}/${fm}月</div></div>`;
+}
+
 function renderDashboard() {
   // ダッシュボード描画時は必ずカレンダーと伝言板も描く（起動時・画面切替どちらも）
   try { renderDueCalendar(); } catch(e){}
@@ -2257,6 +2295,7 @@ function renderDashboard() {
   document.getElementById('stats-grid').innerHTML = `
     <div class="stat-card blue"><div class="stat-label">今月売上</div><div class="stat-value">¥${fmt(monthSales)}</div><div class="stat-sub">${monthProds.length}件</div></div>
     <div class="stat-card green"><div class="stat-label">年間売上（${thisYear}）</div><div class="stat-value">¥${fmt(yearSales)}</div><div class="stat-sub">${yearProds.length}件</div></div>
+    ${_fiscalCard()}
     <div class="stat-card yellow"><div class="stat-label">登録製品数</div><div class="stat-value">${DB.products.length}</div><div class="stat-sub">品番数</div></div>
     <div class="stat-card red"><div class="stat-label">取引先数</div><div class="stat-value">${DB.suppliers.clients.length + DB.suppliers.materials.length}</div><div class="stat-sub">社</div></div>
   `;
@@ -2688,7 +2727,7 @@ function renderDueCalendar(){
     const isToday = isThisMonth && today.getDate()===d;
     const ev = (DB.events||[]).filter(e=>e.date===`${_calY}-${String(_calM).padStart(2,'0')}-${String(d).padStart(2,'0')}`).length;
     const isRed = ((first+d-1)%7===0) || _isHoliday(_calY,_calM,d);
-    html += `<div onclick="calShowDay(${d})" style="min-height:52px;border:${isToday?'2.5px solid #2563eb':(isRed?'1.5px solid #fca5a5':'1px solid var(--border)')};border-radius:8px;padding:4px 6px;cursor:pointer;${cnt?'background:#fff7ed;':(isToday?'background:#eff6ff;':(isRed?'background:#fef2f2;':''))}">
+    html += `<div onclick="calShowDay(${d})" style="min-height:52px;border:${isToday?'2.5px solid #2563eb':(isRed?'1.5px solid #f87171':'1.5px solid #8fa3bf')};border-radius:8px;padding:4px 6px;cursor:pointer;${cnt?'background:#fff7ed;':(isToday?'background:#eff6ff;':(isRed?'background:#fef2f2;':''))}">
       <div style="font-size:${isToday?'16px':'14px'};font-weight:700;color:${(((first+d-1)%7===0)||_isHoliday(_calY,_calM,d))?'#dc2626':((first+d-1)%7===6)?'#2563eb':(isToday?'var(--accent)':'var(--text)')};">${d}</div>
       ${cnt?`<div style="font-size:12px;font-weight:700;color:#d97706;text-align:center;">${cnt}件</div>`:''}
       ${ev?`<div style="font-size:10px;color:#2563eb;text-align:center;">📝${ev}</div>`:''}
