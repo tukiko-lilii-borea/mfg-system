@@ -492,7 +492,7 @@
   <!-- Main -->
   <main class="main">
     <button id="back-fab" onclick="goBackSection()" title="前のページに戻る"
-      style="position:fixed;left:16px;bottom:16px;z-index:900;width:48px;height:48px;border-radius:50%;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-size:20px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.18);display:none;align-items:center;justify-content:center;">←</button>
+      style="position:fixed;left:18px;bottom:18px;z-index:900;padding:13px 22px;border-radius:999px;border:none;background:#2563eb;color:#fff;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(37,99,235,0.45);display:none;align-items:center;gap:6px;">← 戻る</button>
     <div class="mobile-header">
       <button class="menu-btn" onclick="toggleSidebar()">☰</button>
       <span style="font-weight:700;">⚙ 製造管理</span>
@@ -514,20 +514,21 @@
 
       <div class="stats-grid" id="stats-grid"></div>
 
-      <div class="card">
+      <div class="card" style="margin-bottom:26px;">
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
           <span>📅 納期カレンダー</span>
           <span style="display:flex;gap:6px;align-items:center;">
             <button class="btn btn-ghost btn-xs" onclick="calShift(-1)">←</button>
             <span id="due-cal-label" style="font-size:14px;font-weight:700;min-width:110px;text-align:center;"></span>
             <button class="btn btn-ghost btn-xs" onclick="calShift(1)">→</button>
+            <button class="btn btn-ghost btn-xs" onclick="printDueList()">🖨 印刷</button>
           </span>
         </div>
         <div id="due-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
         <div id="due-cal-day-list" style="margin-top:12px;"></div>
       </div>
 
-      <div class="card">
+      <div class="card" style="margin-bottom:26px;">
         <div class="card-title">📝 伝言板</div>
         <div style="display:flex;gap:6px;margin-bottom:10px;">
           <input type="text" id="memo-input" placeholder="例：加藤鋼材に月曜TEL、請求書9/25まで" style="flex:1;" onkeydown="if(event.key==='Enter'){addMemo();}">
@@ -2645,6 +2646,8 @@ function submitWorksheet(){
 
 // ===== 納期カレンダー（ダッシュボード） =====
 let _calY = null, _calM = null;
+const JP_HOLIDAYS = new Set(['2026-1-1','2026-1-12','2026-2-11','2026-2-23','2026-3-20','2026-4-29','2026-5-3','2026-5-4','2026-5-5','2026-5-6','2026-7-20','2026-8-11','2026-9-21','2026-9-22','2026-9-23','2026-10-12','2026-11-3','2026-11-23','2027-1-1','2027-1-11','2027-2-11','2027-2-23','2027-3-21','2027-3-22','2027-4-29','2027-5-3','2027-5-4','2027-5-5','2027-7-19','2027-8-11','2027-9-20','2027-9-23','2027-10-11','2027-11-3','2027-11-23']);
+function _isHoliday(y,m,d){ return JP_HOLIDAYS.has(`${y}-${m}-${d}`); }
 function _calEnsure(){
   if(!_calY || !_calM || _calY < 2000 || _calM < 1 || _calM > 12){
     const n = new Date();
@@ -2685,7 +2688,7 @@ function renderDueCalendar(){
     const isToday = isThisMonth && today.getDate()===d;
     const ev = (DB.events||[]).filter(e=>e.date===`${_calY}-${String(_calM).padStart(2,'0')}-${String(d).padStart(2,'0')}`).length;
     html += `<div onclick="calShowDay(${d})" style="min-height:52px;border:${isToday?'2.5px solid #2563eb':'1px solid var(--border)'};border-radius:8px;padding:4px 6px;cursor:pointer;${cnt?'background:#fff7ed;':(isToday?'background:#eff6ff;':'')}">
-      <div style="font-size:11px;font-weight:${isToday?'700':'400'};color:${isToday?'var(--accent)':'var(--text2)'};">${d}</div>
+      <div style="font-size:11px;font-weight:${isToday?'700':'400'};color:${(((first+d-1)%7===0)||_isHoliday(_calY,_calM,d))?'#dc2626':((first+d-1)%7===6)?'#2563eb':(isToday?'var(--accent)':'var(--text2)')};">${d}</div>
       ${cnt?`<div style="font-size:12px;font-weight:700;color:#d97706;text-align:center;">${cnt}件</div>`:''}
       ${ev?`<div style="font-size:10px;color:#2563eb;text-align:center;">📝${ev}</div>`:''}
     </div>`;
@@ -2734,6 +2737,40 @@ function deleteCalEvent(id){
   DB.events = DB.events.filter(x=>x.id!==id);
   save(); renderDueCalendar(); calShowDay(d);
 }
+// 納期一覧を印刷（表示中の月）
+function printDueList(){
+  _calEnsure();
+  const map={};
+  (DB.productions||[]).forEach(r=>{ const dt=_parseDue(r.due); if(dt&&dt.getFullYear()===_calY&&dt.getMonth()+1===_calM){ (map[dt.getDate()]=map[dt.getDate()]||[]).push(r); } });
+  (DB.events||[]).forEach(e=>{ const p=(e.date||'').split('-'); if(+p[0]===_calY&&+p[1]===_calM){ (map[+p[2]]=map[+p[2]]||[]).push({_ev:e.text}); } });
+  const days=Object.keys(map).map(Number).sort((a,b)=>a-b);
+  if(!days.length){ showToast('この月の納期・予定はありません','error'); return; }
+  const W=['日','月','火','水','木','金','土'];
+  let rows='';
+  days.forEach(d=>{
+    const wd=W[new Date(_calY,_calM-1,d).getDay()];
+    map[d].forEach((r,i)=>{
+      rows+=`<tr>${i===0?`<td rowspan="${map[d].length}" class="d">${_calM}/${d}（${wd}）</td>`:''}${r._ev?`<td colspan="4">📝 ${escapeHtml(r._ev)}</td>`:`<td>${escapeHtml(r.client||'')}</td><td>${escapeHtml(r.fignum||'')}</td><td>${escapeHtml(r.name||'')}</td><td class="r">${r.qty} 個</td>`}</tr>`;
+    });
+  });
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>納期一覧 ${_calY}年${_calM}月</title><style>
+    body{font-family:'Yu Gothic','Meiryo',sans-serif;padding:22px;}
+    h1{font-size:17px;border-bottom:2.5px solid #333;padding-bottom:6px;margin:0 0 14px;}
+    table{width:100%;border-collapse:collapse;font-size:12px;}
+    th,td{border:1px solid #999;padding:6px 9px;text-align:left;}
+    th{background:#eee;font-size:11px;}
+    .d{font-weight:700;white-space:nowrap;background:#fafafa;vertical-align:top;}
+    .r{text-align:right;white-space:nowrap;}
+    @page{size:A4;margin:14mm;}
+  </style></head><body>
+  <h1>📅 納期一覧　${_calY}年${_calM}月</h1>
+  <table><thead><tr><th style="width:88px;">納期</th><th>受注先</th><th>図番</th><th>品名</th><th style="width:58px;">数量</th></tr></thead><tbody>${rows}</tbody></table>
+  <script>window.print();<\/script></body></html>`;
+  const w=window.open('','_blank');
+  if(!w){ showToast('ポップアップがブロックされました','error'); return; }
+  w.document.write(html); w.document.close();
+}
+
 // ===== 伝言板 =====
 function renderMemoBoard(){
   const box=document.getElementById('memo-board-list');
