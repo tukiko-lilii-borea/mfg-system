@@ -527,6 +527,15 @@
         <div id="due-cal-day-list" style="margin-top:12px;"></div>
       </div>
 
+      <div class="card">
+        <div class="card-title">📝 伝言板</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <input type="text" id="memo-input" placeholder="例：加藤鋼材に月曜TEL、請求書9/25まで" style="flex:1;" onkeydown="if(event.key==='Enter'){addMemo();}">
+          <button class="btn btn-primary btn-sm" onclick="addMemo()">＋ 追加</button>
+        </div>
+        <div id="memo-board-list"></div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;" class="dash-charts">
         <div class="card">
           <div class="card-title">月別売上（今年）</div>
@@ -1992,6 +2001,8 @@ const DB = {
   orders: [], // 発注書
   orderTemplates: [], // 発注書備考文言テンプレート
   receipts: [], // 受注（作業書作成時に自動記録）売上・利益・買掛・納期管理の元データ
+  events: [], // カレンダー予定（納期以外のスケジュール）
+  memos: [], // 伝言板
 };
 
 const EST_DEFAULT_TEMPLATES = [
@@ -2018,6 +2029,8 @@ function load() {
     Object.assign(DB, parsed);
     if (!DB.companies) DB.companies = [];
     if (!DB.receipts) DB.receipts = [];
+    if (!DB.events) DB.events = [];
+    if (!DB.memos) DB.memos = [];
     // 旧receipts（受注データ）を実績へ一回だけ移行（データ一本化）
     if (DB.receipts.length) {
       DB.receipts.forEach(r=>{
@@ -2167,6 +2180,7 @@ function showSection(name, _isBack) {
   closeSidebar();
   if (name === 'dashboard') renderDashboard();
   if (name === 'dashboard') renderDueCalendar();
+  if (name === 'dashboard') renderMemoBoard();
   if (name === 'products') renderProducts();
   if (name === 'delivery') renderDelivery();
   if (name === 'product-form') {
@@ -2217,6 +2231,9 @@ function getYears() {
 
 // ===== DASHBOARD =====
 function renderDashboard() {
+  // ダッシュボード描画時は必ずカレンダーと伝言板も描く（起動時・画面切替どちらも）
+  try { renderDueCalendar(); } catch(e){}
+  try { renderMemoBoard(); } catch(e){}
   document.getElementById('today-date').textContent = new Date().toLocaleDateString('ja-JP', {year:'numeric',month:'long',day:'numeric',weekday:'long'});
   
   const now = new Date();
@@ -2666,22 +2683,26 @@ function renderDueCalendar(){
   for(let d=1;d<=days;d++){
     const cnt = (map[d]||[]).length;
     const isToday = isThisMonth && today.getDate()===d;
-    html += `<div onclick="${cnt?`calShowDay(${d})`:''}" style="min-height:52px;border:${isToday?'2.5px solid #2563eb':'1px solid var(--border)'};border-radius:8px;padding:4px 6px;${cnt?'cursor:pointer;background:#fff7ed;':(isToday?'background:#eff6ff;':'')}">
+    const ev = (DB.events||[]).filter(e=>e.date===`${_calY}-${String(_calM).padStart(2,'0')}-${String(d).padStart(2,'0')}`).length;
+    html += `<div onclick="calShowDay(${d})" style="min-height:52px;border:${isToday?'2.5px solid #2563eb':'1px solid var(--border)'};border-radius:8px;padding:4px 6px;cursor:pointer;${cnt?'background:#fff7ed;':(isToday?'background:#eff6ff;':'')}">
       <div style="font-size:11px;font-weight:${isToday?'700':'400'};color:${isToday?'var(--accent)':'var(--text2)'};">${d}</div>
       ${cnt?`<div style="font-size:12px;font-weight:700;color:#d97706;text-align:center;">${cnt}件</div>`:''}
+      ${ev?`<div style="font-size:10px;color:#2563eb;text-align:center;">📝${ev}</div>`:''}
     </div>`;
   }
   grid.innerHTML = html;
   document.getElementById('due-cal-day-list').innerHTML = '';
 }
 function calShowDay(d){
+  const ds = `${_calY}-${String(_calM).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   const list = (DB.productions||[]).filter(r=>{
     const dt=_parseDue(r.due);
     return dt && dt.getFullYear()===_calY && dt.getMonth()+1===_calM && dt.getDate()===d;
   });
+  const evs = (DB.events||[]).filter(e=>e.date===ds);
   document.getElementById('due-cal-day-list').innerHTML = `
-    <div style="font-size:13px;font-weight:700;margin-bottom:6px;">📦 ${_calM}/${d} 納期（${list.length}件）</div>
-    <div class="table-wrap"><table style="width:100%;font-size:13px;">
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px;">${_calM}/${d} の予定</div>
+    ${list.length?`<div class="table-wrap" style="margin-bottom:10px;"><table style="width:100%;font-size:13px;">
       <thead><tr><th>受注先</th><th>図番 / 品名</th><th style="text-align:right;">数量</th><th></th></tr></thead>
       <tbody>${list.map(r=>`<tr onclick="showProdDetail('${r.id}')" style="cursor:pointer;">
         <td style="white-space:nowrap;">${escapeHtml(r.client||'—')}</td>
@@ -2689,7 +2710,52 @@ function calShowDay(d){
         <td style="text-align:right;white-space:nowrap;">${r.qty} 個</td>
         <td style="white-space:nowrap;" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-xs" onclick="editProduction('${r.id}')">編集</button></td>
       </tr>`).join('')}</tbody>
-    </table></div>`;
+    </table></div>`:''}
+    ${evs.map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:8px;margin-bottom:5px;">
+      <div style="font-size:13px;">📝 ${escapeHtml(e.text)}</div>
+      <button class="btn btn-ghost btn-xs" onclick="deleteCalEvent('${e.id}')" style="color:#dc2626;">×</button>
+    </div>`).join('')}
+    <div style="display:flex;gap:6px;margin-top:6px;">
+      <input type="text" id="cal-ev-input" placeholder="予定を追加（例：集金、来客14時）" style="flex:1;" onkeydown="if(event.key==='Enter'){addCalEvent('${ds}',${d});}">
+      <button class="btn btn-primary btn-sm" onclick="addCalEvent('${ds}',${d})">＋ 追加</button>
+    </div>`;
+}
+function addCalEvent(ds,d){
+  const el=document.getElementById('cal-ev-input');
+  const t=(el.value||'').trim();
+  if(!t){ showToast('予定を入力してください','error'); return; }
+  DB.events.push({ id:genId(), date:ds, text:t });
+  save(); renderDueCalendar(); calShowDay(d);
+}
+function deleteCalEvent(id){
+  const e=(DB.events||[]).find(x=>x.id===id);
+  if(!e) return;
+  const d=parseInt(e.date.slice(8),10);
+  DB.events = DB.events.filter(x=>x.id!==id);
+  save(); renderDueCalendar(); calShowDay(d);
+}
+// ===== 伝言板 =====
+function renderMemoBoard(){
+  const box=document.getElementById('memo-board-list');
+  if(!box) return;
+  box.innerHTML = (DB.memos||[]).length ? DB.memos.slice().reverse().map(m=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;background:#fefce8;border:1px solid #fde047;border-radius:8px;margin-bottom:6px;">
+      <div style="font-size:13px;line-height:1.5;">${escapeHtml(m.text)}<span style="font-size:11px;color:var(--text3);margin-left:8px;">${m.date||''}</span></div>
+      <button class="btn btn-ghost btn-xs" onclick="deleteMemo('${m.id}')" style="color:#dc2626;">×</button>
+    </div>`).join('') : '<div style="font-size:12px;color:var(--text3);">メモはありません</div>';
+}
+function addMemo(){
+  const el=document.getElementById('memo-input');
+  const t=(el.value||'').trim();
+  if(!t){ showToast('メモを入力してください','error'); return; }
+  const n=new Date();
+  DB.memos.push({ id:genId(), text:t, date:`${n.getMonth()+1}/${n.getDate()}` });
+  el.value='';
+  save(); renderMemoBoard();
+}
+function deleteMemo(id){
+  DB.memos = (DB.memos||[]).filter(x=>x.id!==id);
+  save(); renderMemoBoard();
 }
 
 // 全画面を再描画（データは productions 一本なので、これで全部揃う）
@@ -2700,6 +2766,7 @@ function refreshAllViews(){
   try { if (typeof renderDelivery === 'function' && document.getElementById('dl-tbody')) renderDelivery(); } catch(e){}
   try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){}
   try { if (typeof renderDueCalendar === 'function') renderDueCalendar(); } catch(e){}
+  try { if (typeof renderMemoBoard === 'function') renderMemoBoard(); } catch(e){}
 }
 
 // 作業書作成時に実績として記録（受注・売上・利益・納期・在庫すべてこの1件で管理）
@@ -3496,7 +3563,7 @@ function filterProduction(q) {
   q = (q||'').toLowerCase();
   const machine = document.getElementById('prod-machine-filter').value;
   const prods = DB.productions.filter(p=>p.date.startsWith(prodCurrentYear))
-    .filter(p=>(!q || p.machine.toLowerCase().includes(q) || p.fignum.toLowerCase().includes(q) || (p.name||'').toLowerCase().includes(q)) && (!machine || p.machine===machine))
+    .filter(p=>(!q || p.machine.toLowerCase().includes(q) || p.fignum.toLowerCase().includes(q) || (p.name||'').toLowerCase().includes(q) || (p.client||'').toLowerCase().includes(q)) && (!machine || p.machine===machine))
     .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0) || b.date.localeCompare(a.date));
 
   // サマリー（表示中の年・絞り込み後）
@@ -4090,7 +4157,7 @@ function _enrichProducts(prodAgg) {
     return {fignum:pa.fignum,name:pa.name||(master&&master.name)||'',client:getClient(pa.fignum),count:pa.count,sales:pa.sales,mat:pa.mat,os:os,gross:gross,rate:rate,sec:pa.sec};
   }).sort(function(a,b){return b.sales-a.sales;});
 }
-function _clientRow(e,grand){var pct=grand?(e[1].total/grand*100).toFixed(1):'0.0';return '<tr><td>'+e[0]+'</td><td>'+e[1].count+'件</td><td>¥'+fmt(e[1].total)+'</td><td>'+pct+'%</td></tr>';}
+function _clientRow(e,grand){var pct=grand?(e[1].total/grand*100).toFixed(1):'0.0';return '<tr onclick="jumpToProduction(\''+e[0].replace(/'/g,"\\'")+'\')" style="cursor:pointer;" title="クリックで実績を開く"><td>'+e[0]+'</td><td>'+e[1].count+'件</td><td>¥'+fmt(e[1].total)+'</td><td>'+pct+'%</td></tr>';}
 function _matRow(e,grand){var pct=grand?(e[1].total/grand*100).toFixed(1):'0.0';return '<tr><td>'+e[0]+'</td><td>'+e[1].count+'件</td><td>¥'+fmt(e[1].total)+'</td><td>'+pct+'%</td></tr>';}
 function _machineRow(e){return '<tr><td>'+e[0]+'</td><td>'+fmtDuration(e[1].sec)+'</td><td>'+e[1].count+'件</td><td>¥'+fmt(e[1].sales)+'</td></tr>';}
 function _productRow(r,showTime){return '<tr onclick="jumpToProduction(\''+r.fignum+'\')" style="cursor:pointer;" title="クリックで作業実績を開く"><td><span class="badge badge-blue">'+r.fignum+'</span></td><td>'+r.name+'</td><td>'+r.client+'</td><td>'+r.count+'件</td><td>¥'+fmt(r.sales)+'</td><td>¥'+fmt(r.mat)+'</td><td>¥'+fmt(r.os)+'</td><td>¥'+fmt(r.gross)+'</td><td>'+r.rate.toFixed(1)+'%</td>'+(showTime?'<td>'+fmtDuration(r.sec)+'</td>':'')+'</tr>';}
