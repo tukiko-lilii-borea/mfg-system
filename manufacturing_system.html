@@ -2335,16 +2335,17 @@ function saveMyCompany(){
 }
 
 // ===== 売上集計（決算期） =====
-let _sfY = null;
-function sfSetYear(v){ _sfY = parseInt(v,10); renderSalesFiscal(); }
+let _sfY = null, _sfM = 0, _sfQ = '';
+function sfSetYear(v){ _sfY = parseInt(v,10); _sfM=0; renderSalesFiscal(); }
+function sfSetMonth(m){ _sfM = m; renderSalesFiscal(); }
+function sfSetQ(v){ _sfQ = (v||'').toLowerCase(); renderSalesFiscal(); }
 function renderSalesFiscal(){
   const body=document.getElementById('sf-body');
   if(!body) return;
   const fm=DB.company.fiscalMonth;
   if(!fm){
     body.innerHTML = '<div class="card" style="text-align:center;padding:36px;"><div style="font-size:14px;margin-bottom:12px;">決算月がまだ設定されていません</div><button class="btn btn-primary btn-sm" onclick="setupFiscal()">⚙ 決算月と第1期を設定する</button></div>';
-    document.getElementById('sf-year').innerHTML='';
-    document.getElementById('sf-sub').textContent='';
+    document.getElementById('sf-year').innerHTML=''; document.getElementById('sf-sub').textContent='';
     return;
   }
   const set=new Set();
@@ -2357,39 +2358,53 @@ function renderSalesFiscal(){
   const kiName=function(y){ return DB.company.firstFiscalYear ? ('第'+(y-DB.company.firstFiscalYear+1)+'期') : (y+'年期'); };
   document.getElementById('sf-year').innerHTML = years.map(function(y){ return '<option value="'+y+'"'+(y===_sfY?' selected':'')+'>'+kiName(y)+'（〜'+y+'/'+fm+'月）</option>'; }).join('');
   document.getElementById('sf-sub').textContent = (_sfY-1)+'年'+(fm+1>12?1:fm+1)+'月 〜 '+_sfY+'年'+fm+'月（'+fm+'月決算）';
-  const months=[]; for(let k=1;k<=12;k++){ months.push((fm+k-1)%12+1); }
-  const perMonth={}; months.forEach(function(m){ perMonth[m]={sales:0,cnt:0}; });
-  const perClient={};
-  let total=0, totalCnt=0;
-  (DB.productions||[]).forEach(function(p){
-    const ym=_salesYM(p);
-    if(!ym || _fiscalYearOf(ym,fm)!==_sfY) return;
-    const s=_recSales(p);
-    perMonth[ym.m].sales+=s; perMonth[ym.m].cnt++;
-    const c=p.client||'（受注先なし）';
-    if(!perClient[c]) perClient[c]={sales:0,cnt:0};
-    perClient[c].sales+=s; perClient[c].cnt++;
-    total+=s; totalCnt++;
+  const months=[]; for(let k=1;k<=12;k++){ months.push((fm+k)%12===0?12:(fm+k)%12); }
+  // 期内の実績（月フィルタあり）
+  const inFY=(DB.productions||[]).filter(function(p){ const ym=_salesYM(p); return ym && _fiscalYearOf(ym,fm)===_sfY; });
+  const list=inFY.filter(function(p){ const ym=_salesYM(p); return !_sfM || ym.m===_sfM; });
+  // 検索（図番/品名/受注先）
+  const q=_sfQ;
+  const flist=list.filter(function(p){ if(!q) return true; return (p.fignum||'').toLowerCase().includes(q)||(p.name||'').toLowerCase().includes(q)||(p.client||'').toLowerCase().includes(q); });
+  // 製品別集計
+  const prod={};
+  flist.forEach(function(p){
+    const key=(p.fignum||'')+'||'+(p.name||'')+'||'+(p.client||'');
+    if(!prod[key]) prod[key]={fignum:p.fignum||'',name:p.name||'',client:p.client||'',cnt:0,sales:0,cost:0};
+    prod[key].cnt++; prod[key].sales+=_recSales(p); prod[key].cost+=_recCost(p);
   });
-  const maxM=Math.max.apply(null, months.map(function(m){return perMonth[m].sales;}).concat([1]));
-  const clients=Object.entries(perClient).sort(function(a,b){return b[1].sales-a[1].sales;});
-  let mrows='';
-  months.forEach(function(m){
-    const d=perMonth[m];
-    mrows+='<tr><td style="white-space:nowrap;font-weight:600;">'+m+'月</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(d.sales)+'</td><td style="text-align:right;">'+d.cnt+'件</td><td><div style="height:14px;border-radius:4px;background:'+(d.sales?'#9333ea':'var(--bg3)')+';width:'+Math.max(d.sales/maxM*100,d.sales?2:1)+'%;"></div></td></tr>';
+  const prows=Object.values(prod).sort(function(a,b){return b.sales-a.sales;});
+  let tSales=0,tCost=0,tCnt=0;
+  prows.forEach(function(r){ tSales+=r.sales; tCost+=r.cost; tCnt+=r.cnt; });
+  // 会社別集計
+  const cl={};
+  flist.forEach(function(p){ const c=p.client||'（受注先なし）'; if(!cl[c])cl[c]={sales:0,cnt:0}; cl[c].sales+=_recSales(p); cl[c].cnt++; });
+  const crows=Object.entries(cl).sort(function(a,b){return b[1].sales-a[1].sales;});
+  const tabs='<div class="tabs" style="margin-bottom:14px;"><div class="tab'+(!_sfM?' active':'')+'" onclick="sfSetMonth(0)">全期間</div>'+months.map(function(m){return '<div class="tab'+(_sfM===m?' active':'')+'" onclick="sfSetMonth('+m+')">'+m+'月</div>';}).join('')+'</div>';
+  let ph='';
+  prows.forEach(function(r){
+    const g=r.sales-r.cost;
+    ph+='<tr onclick="jumpToProduction(\''+(r.fignum||r.client).replace(/'/g,"\\'")+'\')" style="cursor:pointer;"><td>'+(r.fignum?'<span class="badge badge-blue">'+escapeHtml(r.fignum)+'</span>':'—')+'</td><td>'+escapeHtml(r.name)+'</td><td>'+escapeHtml(r.client)+'</td><td style="text-align:right;">'+r.cnt+'件</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(r.sales)+'</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(r.cost)+'</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(g)+'</td><td style="text-align:right;">'+(r.sales?(g/r.sales*100).toFixed(1):'0.0')+'%</td></tr>';
   });
-  let crows='';
-  clients.forEach(function(e){
-    const c=e[0], d=e[1];
-    crows+='<tr onclick="jumpToProduction(\''+c.replace(/'/g,"\\'")+'\')" style="cursor:pointer;"><td>'+escapeHtml(c)+'</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(d.sales)+'</td><td style="text-align:right;">'+d.cnt+'件</td><td style="text-align:right;">'+(total?(d.sales/total*100).toFixed(1):'0.0')+'%</td></tr>';
+  if(!ph) ph='<tr><td colspan="8" style="text-align:center;color:var(--text3);">データがありません</td></tr>';
+  const tg=tSales-tCost;
+  ph+='<tr style="font-weight:700;border-top:2px solid var(--border);"><td>合計</td><td></td><td></td><td style="text-align:right;">'+tCnt+'件</td><td style="text-align:right;">¥'+fmt(tSales)+'</td><td style="text-align:right;">¥'+fmt(tCost)+'</td><td style="text-align:right;">¥'+fmt(tg)+'</td><td style="text-align:right;">'+(tSales?(tg/tSales*100).toFixed(1):'0.0')+'%</td></tr>';
+  let ch='';
+  crows.forEach(function(e){
+    const c=e[0],d=e[1];
+    ch+='<tr onclick="jumpToProduction(\''+c.replace(/'/g,"\\'")+'\')" style="cursor:pointer;"><td>'+escapeHtml(c)+'</td><td style="text-align:right;">'+d.cnt+'件</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(d.sales)+'</td><td style="text-align:right;">'+(tSales?(d.sales/tSales*100).toFixed(1):'0.0')+'%</td></tr>';
   });
-  if(!crows) crows='<tr><td colspan="4" style="text-align:center;color:var(--text3);">データがありません</td></tr>';
-  body.innerHTML = '<div class="stats-grid" style="grid-template-columns:repeat(2,1fr);">'
-    +'<div class="stat-card purple"><div class="stat-label">'+kiName(_sfY)+' 売上合計</div><div class="stat-value">¥'+fmt(total)+'</div><div class="stat-sub">'+totalCnt+'件</div></div>'
-    +'<div class="stat-card blue"><div class="stat-label">月平均</div><div class="stat-value">¥'+fmt(Math.round(total/12))+'</div><div class="stat-sub">12ヶ月換算</div></div>'
+  if(!ch) ch='<tr><td colspan="4" style="text-align:center;color:var(--text3);">データがありません</td></tr>';
+  const label=(!_sfM?'全期間':_sfM+'月');
+  body.innerHTML = tabs
+    +'<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">'
+    +'<div class="stat-card purple"><div class="stat-label">'+kiName(_sfY)+'・'+label+' 売上</div><div class="stat-value">¥'+fmt(tSales)+'</div><div class="stat-sub">'+tCnt+'件</div></div>'
+    +'<div class="stat-card green"><div class="stat-label">粗利</div><div class="stat-value">¥'+fmt(tg)+'</div><div class="stat-sub">粗利率 '+(tSales?(tg/tSales*100).toFixed(1):'0.0')+'%</div></div>'
+    +'<div class="stat-card blue"><div class="stat-label">月平均（期全体）</div><div class="stat-value">¥'+fmt(Math.round(inFY.reduce(function(a,p){return a+_recSales(p);},0)/12))+'</div><div class="stat-sub">12ヶ月換算</div></div>'
     +'</div>'
-    +'<div class="card" style="margin-bottom:20px;"><div class="card-title">月別売上（'+kiName(_sfY)+'）</div><div class="table-wrap"><table style="width:100%;font-size:13px;"><thead><tr><th>月</th><th style="text-align:right;">売上</th><th style="text-align:right;">件数</th><th style="width:45%;"></th></tr></thead><tbody>'+mrows+'</tbody></table></div></div>'
-    +'<div class="card"><div class="card-title">会社別売上（'+kiName(_sfY)+'）</div><div class="table-wrap"><table style="width:100%;font-size:13px;"><thead><tr><th>受注先</th><th style="text-align:right;">売上</th><th style="text-align:right;">件数</th><th style="text-align:right;">構成比</th></tr></thead><tbody>'+crows+'</tbody></table></div></div>';
+    +'<div class="card" style="margin-bottom:20px;"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;"><span>製品別売上（'+label+'）</span><input type="text" value="'+escapeHtml(_sfQ)+'" oninput="sfSetQ(this.value)" placeholder="🔍 図番・品名・受注先で検索" style="width:260px;"></div>'
+    +'<div class="table-wrap"><table style="width:100%;font-size:13px;"><thead><tr><th>図番</th><th>品名</th><th>受注先</th><th style="text-align:right;">件数</th><th style="text-align:right;">売上</th><th style="text-align:right;">原価</th><th style="text-align:right;">粗利</th><th style="text-align:right;">粗利率</th></tr></thead><tbody>'+ph+'</tbody></table></div></div>'
+    +'<div class="card"><div class="card-title">会社別売上（'+label+'）</div><div class="table-wrap"><table style="width:100%;font-size:13px;"><thead><tr><th>受注先</th><th style="text-align:right;">件数</th><th style="text-align:right;">売上</th><th style="text-align:right;">構成比</th></tr></thead><tbody>'+ch+'</tbody></table></div></div>';
+  const inp=body.querySelector('input'); if(inp && _sfQ){ inp.focus(); const v=inp.value; inp.value=''; inp.value=v; }
 }
 
 // ===== 決算期（自社設定） =====
