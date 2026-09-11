@@ -132,7 +132,7 @@
   .modal-close { background: none; border: none; color: var(--text2); font-size: 20px; cursor: pointer; padding: 4px; }
 
   /* Toast */
-  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; font-size: 13px; box-shadow: var(--shadow); z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s; max-width: 320px; }
+  .toast { position: fixed; bottom: 78px; right: 24px; background: var(--bg3); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; font-size: 13px; box-shadow: var(--shadow); z-index: 9999; transform: translateY(80px); opacity: 0; transition: all 0.3s; max-width: 320px; }
   .toast.show { transform: translateY(0); opacity: 1; }
   .toast.success { border-left: 3px solid var(--success); }
   .toast.error { border-left: 3px solid var(--danger); }
@@ -426,11 +426,29 @@
       </div>
       <div class="nav-group">
         <div class="nav-label">製品管理</div>
+        <div class="nav-item" onclick="showSection('product-form')">
+          <span class="nav-icon">➕</span>製品登録
+        </div>
         <div class="nav-item" onclick="showSection('products')">
           <span class="nav-icon">📋</span>製品一覧
         </div>
-        <div class="nav-item" onclick="showSection('product-form')">
-          <span class="nav-icon">➕</span>製品登録
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">生産管理</div>
+        <div class="nav-item" onclick="showSection('production-form')">
+          <span class="nav-icon">📝</span>実績登録
+        </div>
+        <div class="nav-item" onclick="showSection('production')">
+          <span class="nav-icon">🔧</span>作業実績
+        </div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">分析・集計</div>
+        <div class="nav-item" onclick="showSection('sales')">
+          <span class="nav-icon">💰</span>売上集計
+        </div>
+        <div class="nav-item" onclick="showSection('profit')">
+          <span class="nav-icon">📈</span>利益レポート
         </div>
       </div>
       <div class="nav-group">
@@ -446,25 +464,10 @@
         </div>
       </div>
       <div class="nav-group">
-        <div class="nav-label">生産管理</div>
-        <div class="nav-item" onclick="showSection('production')">
-          <span class="nav-icon">🔧</span>作業実績
-        </div>
-        <div class="nav-item" onclick="showSection('production-form')">
-          <span class="nav-icon">📝</span>実績登録
-        </div>
-      </div>
-      <div class="nav-group">
-        <div class="nav-label">分析・集計</div>
-        <div class="nav-item" onclick="showSection('sales')">
-          <span class="nav-icon">💰</span>売上集計
-        </div>
-        <div class="nav-item" onclick="showSection('profit')">
-          <span class="nav-icon">📈</span>利益レポート
-        </div>
-      </div>
-      <div class="nav-group">
         <div class="nav-label">マスタ</div>
+        <div class="nav-item" onclick="showSection('mycompany')">
+          <span class="nav-icon">🏠</span>自社情報
+        </div>
         <div class="nav-item" onclick="showSection('suppliers')">
           <span class="nav-icon">🏢</span>取引先管理
         </div>
@@ -495,6 +498,35 @@
       <button class="menu-btn" onclick="toggleSidebar()">☰</button>
       <span style="font-weight:700;">⚙ 製造管理</span>
     </div>
+
+    <!-- ===== 自社情報 ===== -->
+    <section class="section" id="sec-mycompany">
+      <div class="page-header">
+        <div><div class="page-title">🏠 自社情報</div><div class="page-subtitle">取引先に渡す会社情報。空欄の項目は印刷に出ません</div></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="printMyCompany()">🖨 印刷（お客様に渡す用）</button>
+          <button class="btn btn-primary btn-sm" onclick="saveMyCompany()">💾 保存</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="form-grid-2">
+          <div class="form-group"><label>会社名</label><input type="text" id="mc-name"></div>
+          <div class="form-group"><label>代表者名</label><input type="text" id="mc-rep"></div>
+          <div class="form-group"><label>郵便番号</label><input type="text" id="mc-zip"></div>
+          <div class="form-group full"><label>住所</label><input type="text" id="mc-address"></div>
+          <div class="form-group"><label>電話番号</label><input type="text" id="mc-tel"></div>
+          <div class="form-group"><label>FAX番号</label><input type="text" id="mc-fax"></div>
+          <div class="form-group full"><label>メールアドレス</label><input type="text" id="mc-email"></div>
+          <div class="form-group full"><label>適格請求書発行事業者番号（インボイス）</label><input type="text" id="mc-invoice" placeholder="例：T1234567890123"></div>
+          <div class="form-group"><label>銀行名</label><input type="text" id="mc-bank"></div>
+          <div class="form-group"><label>支店名</label><input type="text" id="mc-branch"></div>
+          <div class="form-group"><label>口座種別</label><select id="mc-acctype"><option value="">未設定</option><option value="普通">普通</option><option value="当座">当座</option></select></div>
+          <div class="form-group"><label>口座番号</label><input type="text" id="mc-accnum"></div>
+          <div class="form-group full"><label>口座名義（カナ）</label><input type="text" id="mc-accname"></div>
+          <div class="form-group full"><label>備考（印刷にも出ます）</label><textarea id="mc-note" style="min-height:56px;"></textarea></div>
+        </div>
+      </div>
+    </section>
 
     <!-- ===== DASHBOARD ===== -->
     <section class="section active" id="sec-dashboard">
@@ -2158,6 +2190,7 @@ function showSection(name, _isBack) {
   currentSection = name;
   closeSidebar();
   if (name === 'dashboard') renderDashboard();
+  if (name === 'mycompany') loadMyCompany();
   if (name === 'dashboard') renderDueCalendar();
   if (name === 'dashboard') renderMemoBoard();
   if (name === 'products') renderProducts();
@@ -2208,6 +2241,48 @@ function getYears() {
 }
 
 // ===== DASHBOARD =====
+// ===== 自社情報 =====
+const MC_FIELDS = ['name','rep','zip','address','tel','fax','email','invoice','bank','branch','accType','accNum','accName','note'];
+const MC_IDS = {name:'mc-name',rep:'mc-rep',zip:'mc-zip',address:'mc-address',tel:'mc-tel',fax:'mc-fax',email:'mc-email',invoice:'mc-invoice',bank:'mc-bank',branch:'mc-branch',accType:'mc-acctype',accNum:'mc-accnum',accName:'mc-accname',note:'mc-note'};
+function loadMyCompany(){
+  MC_FIELDS.forEach(k=>{ const el=document.getElementById(MC_IDS[k]); if(el) el.value = DB.company[k]||''; });
+}
+function saveMyCompany(){
+  MC_FIELDS.forEach(k=>{ const el=document.getElementById(MC_IDS[k]); if(el) DB.company[k] = el.value.trim(); });
+  save();
+  showToast('自社情報を保存しました');
+}
+function printMyCompany(){
+  saveMyCompany();
+  const c = DB.company;
+  const row = (label,val)=> val ? `<tr><th>${label}</th><td>${escapeHtml(String(val))}</td></tr>` : '';
+  const bankLine = [c.bank,c.branch,c.accType,c.accNum].filter(Boolean).join('　');
+  const rows =
+    row('会社名', c.name) + row('代表者', c.rep) +
+    row('住所', (c.zip?('〒'+c.zip+'　'):'')+(c.address||'') ) +
+    row('電話番号', c.tel) + row('FAX番号', c.fax) + row('メール', c.email) +
+    row('インボイス登録番号', c.invoice) +
+    row('お振込先', bankLine) + row('口座名義（カナ）', c.accName) +
+    row('備考', c.note);
+  if(!rows){ showToast('印刷する情報がありません。まず入力してください','error'); return; }
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>会社情報　${escapeHtml(c.name||'')}</title><style>
+    body{font-family:'Yu Gothic','Meiryo',sans-serif;padding:30px;}
+    h1{font-size:19px;border-bottom:3px solid #1e3a5f;padding-bottom:8px;margin:0 0 20px;}
+    table{width:100%;border-collapse:collapse;font-size:14px;}
+    th{width:200px;background:#eef2f7;border:1px solid #8fa3bf;padding:11px 14px;text-align:left;font-size:13px;}
+    td{border:1px solid #8fa3bf;padding:11px 14px;font-weight:600;}
+    .foot{margin-top:20px;font-size:11px;color:#666;text-align:right;}
+    @page{size:A4;margin:18mm;}
+  </style></head><body>
+  <h1>会社情報のご案内</h1>
+  <table>${rows}</table>
+  <div class="foot">発行日：${new Date().getFullYear()}年${new Date().getMonth()+1}月${new Date().getDate()}日</div>
+  <script>window.print();<\/script></body></html>`;
+  const w=window.open('','_blank');
+  if(!w){ showToast('ポップアップがブロックされました','error'); return; }
+  w.document.write(html); w.document.close();
+}
+
 // ===== 決算期（自社設定） =====
 function setupFiscal(){
   const fm = prompt('決算月を入力してください（1〜12）\n例：8月決算なら 8', DB.company.fiscalMonth||'');
@@ -2269,11 +2344,11 @@ function renderDashboard() {
   const yearSales = yearProds.reduce((a,p)=>(a + (p.price||0)*(p.qty||0)),0);
 
   document.getElementById('stats-grid').innerHTML = `
-    <div class="stat-card blue"><div class="stat-label">今月売上</div><div class="stat-value">¥${fmt(monthSales)}</div><div class="stat-sub">${monthProds.length}件</div></div>
-    <div class="stat-card green"><div class="stat-label">年間売上（${thisYear}）</div><div class="stat-value">¥${fmt(yearSales)}</div><div class="stat-sub">${yearProds.length}件</div></div>
+    <div class="stat-card blue" onclick="showSection('sales')" style="cursor:pointer;" title="クリックで売上集計へ"><div class="stat-label">今月売上</div><div class="stat-value">¥${fmt(monthSales)}</div><div class="stat-sub">${monthProds.length}件</div></div>
+    <div class="stat-card green" onclick="showSection('sales')" style="cursor:pointer;" title="クリックで売上集計へ"><div class="stat-label">年間売上（${thisYear}）</div><div class="stat-value">¥${fmt(yearSales)}</div><div class="stat-sub">${yearProds.length}件</div></div>
     ${_fiscalCard()}
-    <div class="stat-card yellow"><div class="stat-label">登録製品数</div><div class="stat-value">${DB.products.length}</div><div class="stat-sub">品番数</div></div>
-    <div class="stat-card red"><div class="stat-label">取引先数</div><div class="stat-value">${DB.suppliers.clients.length + DB.suppliers.materials.length}</div><div class="stat-sub">社</div></div>
+    <div class="stat-card yellow" onclick="showSection('products')" style="cursor:pointer;" title="クリックで製品一覧へ"><div class="stat-label">登録製品数</div><div class="stat-value">${DB.products.length}</div><div class="stat-sub">品番数</div></div>
+    <div class="stat-card red" onclick="showSection('suppliers')" style="cursor:pointer;" title="クリックで取引先管理へ"><div class="stat-label">取引先数</div><div class="stat-value">${DB.suppliers.clients.length + DB.suppliers.materials.length}</div><div class="stat-sub">社</div></div>
   `;
 
   // Monthly chart
@@ -6845,7 +6920,7 @@ document.documentElement.style.setProperty('font-size','17px');
     bar.id='od-quick-bar';
     bar.style.cssText='position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;gap:6px;align-items:center;background:var(--bg2);border:1.5px solid #334e7c;border-radius:999px;padding:6px 10px;box-shadow:0 4px 14px rgba(0,0,0,0.15);';
     bar.innerHTML=
-      '<span id="od-status" style="font-size:11px;color:#475569;font-weight:600;margin-right:4px;min-width:80px;text-align:right;"></span>'+
+      '<span id="od-status" style="font-size:11px;color:#475569;font-weight:600;text-align:right;"></span>'+
       '<button type="button" id="od-quick-save" style="font-size:12px;padding:4px 10px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:background 0.2s,color 0.2s;">☁️保存</button>'+
       '<button type="button" id="od-quick-load" style="font-size:12px;padding:4px 10px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08);">☁️読込</button>';
     document.body.appendChild(bar);
