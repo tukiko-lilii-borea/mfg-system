@@ -2689,7 +2689,7 @@ function renderDueCalendar(){
     const ev = (DB.events||[]).filter(e=>e.date===`${_calY}-${String(_calM).padStart(2,'0')}-${String(d).padStart(2,'0')}`).length;
     const isRed = ((first+d-1)%7===0) || _isHoliday(_calY,_calM,d);
     html += `<div onclick="calShowDay(${d})" style="min-height:52px;border:${isToday?'2.5px solid #2563eb':(isRed?'1.5px solid #fca5a5':'1px solid var(--border)')};border-radius:8px;padding:4px 6px;cursor:pointer;${cnt?'background:#fff7ed;':(isToday?'background:#eff6ff;':(isRed?'background:#fef2f2;':''))}">
-      <div style="font-size:11px;font-weight:${isToday?'700':'400'};color:${(((first+d-1)%7===0)||_isHoliday(_calY,_calM,d))?'#dc2626':((first+d-1)%7===6)?'#2563eb':(isToday?'var(--accent)':'var(--text2)')};">${d}</div>
+      <div style="font-size:${isToday?'16px':'14px'};font-weight:700;color:${(((first+d-1)%7===0)||_isHoliday(_calY,_calM,d))?'#dc2626':((first+d-1)%7===6)?'#2563eb':(isToday?'var(--accent)':'var(--text)')};">${d}</div>
       ${cnt?`<div style="font-size:12px;font-weight:700;color:#d97706;text-align:center;">${cnt}件</div>`:''}
       ${ev?`<div style="font-size:10px;color:#2563eb;text-align:center;">📝${ev}</div>`:''}
     </div>`;
