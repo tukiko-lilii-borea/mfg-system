@@ -526,6 +526,19 @@
       </div>
 
       <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📅 納期カレンダー</span>
+          <span style="display:flex;gap:6px;align-items:center;">
+            <button class="btn btn-ghost btn-xs" onclick="calShift(-1)">←</button>
+            <span id="due-cal-label" style="font-size:14px;font-weight:700;min-width:110px;text-align:center;"></span>
+            <button class="btn btn-ghost btn-xs" onclick="calShift(1)">→</button>
+          </span>
+        </div>
+        <div id="due-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;"></div>
+        <div id="due-cal-day-list" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="card">
         <div class="card-title">最近の作業実績</div>
         <div class="table-wrap">
           <table id="recent-table">
@@ -2153,6 +2166,7 @@ function showSection(name, _isBack) {
   currentSection = name;
   closeSidebar();
   if (name === 'dashboard') renderDashboard();
+  if (name === 'dashboard') renderDueCalendar();
   if (name === 'products') renderProducts();
   if (name === 'delivery') renderDelivery();
   if (name === 'product-form') {
@@ -2612,6 +2626,64 @@ function submitWorksheet(){
   printWorksheet(pw, qtys, prodQty, due);
 }
 
+// ===== 納期カレンダー（ダッシュボード） =====
+let _calY = null, _calM = null;
+function calShift(d){
+  _calM += d;
+  if(_calM>12){ _calM=1; _calY++; }
+  if(_calM<1){ _calM=12; _calY--; }
+  renderDueCalendar();
+}
+function renderDueCalendar(){
+  const grid = document.getElementById('due-cal-grid');
+  if(!grid) return;
+  if(_calY===null){ const n=new Date(); _calY=n.getFullYear(); _calM=n.getMonth()+1; }
+  document.getElementById('due-cal-label').textContent = `${_calY}年${_calM}月`;
+  // 納期を日別に集計
+  const map = {};
+  (DB.productions||[]).forEach(r=>{
+    const dt=_parseDue(r.due);
+    if(!dt) return;
+    if(dt.getFullYear()===_calY && dt.getMonth()+1===_calM){
+      const d=dt.getDate();
+      (map[d]=map[d]||[]).push(r);
+    }
+  });
+  const first = new Date(_calY,_calM-1,1).getDay();
+  const days = new Date(_calY,_calM,0).getDate();
+  const today = new Date();
+  const isThisMonth = today.getFullYear()===_calY && today.getMonth()+1===_calM;
+  let html = ['日','月','火','水','木','金','土'].map((w,i)=>`<div style="text-align:center;font-size:11px;font-weight:700;color:${i===0?'#dc2626':i===6?'#2563eb':'var(--text2)'};padding:3px 0;">${w}</div>`).join('');
+  for(let i=0;i<first;i++) html += '<div></div>';
+  for(let d=1;d<=days;d++){
+    const cnt = (map[d]||[]).length;
+    const isToday = isThisMonth && today.getDate()===d;
+    html += `<div onclick="${cnt?`calShowDay(${d})`:''}" style="min-height:52px;border:1px solid ${isToday?'var(--accent)':'var(--border)'};border-radius:8px;padding:4px 6px;${cnt?'cursor:pointer;background:#fff7ed;':''}${isToday?'box-shadow:0 0 0 1px var(--accent);':''}">
+      <div style="font-size:11px;font-weight:${isToday?'700':'400'};color:${isToday?'var(--accent)':'var(--text2)'};">${d}</div>
+      ${cnt?`<div style="font-size:12px;font-weight:700;color:#d97706;text-align:center;">${cnt}件</div>`:''}
+    </div>`;
+  }
+  grid.innerHTML = html;
+  document.getElementById('due-cal-day-list').innerHTML = '';
+}
+function calShowDay(d){
+  const list = (DB.productions||[]).filter(r=>{
+    const dt=_parseDue(r.due);
+    return dt && dt.getFullYear()===_calY && dt.getMonth()+1===_calM && dt.getDate()===d;
+  });
+  document.getElementById('due-cal-day-list').innerHTML = `
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px;">📦 ${_calM}/${d} 納期（${list.length}件）</div>
+    <div class="table-wrap"><table style="width:100%;font-size:13px;">
+      <thead><tr><th>受注先</th><th>図番 / 品名</th><th style="text-align:right;">数量</th><th></th></tr></thead>
+      <tbody>${list.map(r=>`<tr onclick="showProdDetail('${r.id}')" style="cursor:pointer;">
+        <td style="white-space:nowrap;">${escapeHtml(r.client||'—')}</td>
+        <td>${r.fignum?`<span class="badge badge-blue">${escapeHtml(r.fignum)}</span> `:''}${escapeHtml(r.name||'')}</td>
+        <td style="text-align:right;white-space:nowrap;">${r.qty} 個</td>
+        <td style="white-space:nowrap;" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-xs" onclick="editProduction('${r.id}')">編集</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
 // 全画面を再描画（データは productions 一本なので、これで全部揃う）
 function refreshAllViews(){
   try { if (typeof renderProduction === 'function') renderProduction(); } catch(e){}
@@ -2619,6 +2691,7 @@ function refreshAllViews(){
   try { if (typeof renderProfit === 'function') renderProfit(); } catch(e){}
   try { if (typeof renderDelivery === 'function' && document.getElementById('dl-tbody')) renderDelivery(); } catch(e){}
   try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){}
+  try { if (typeof renderDueCalendar === 'function') renderDueCalendar(); } catch(e){}
 }
 
 // 作業書作成時に実績として記録（受注・売上・利益・納期・在庫すべてこの1件で管理）
