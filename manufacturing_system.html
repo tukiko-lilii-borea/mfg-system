@@ -526,6 +526,8 @@
           <div class="form-group full"><label>メールアドレス</label><input type="text" id="mc-email"></div>
           <div class="form-group full"><label>適格請求書発行事業者番号（インボイス）</label><input type="text" id="mc-invoice" placeholder="例：T1234567890123"></div>
           <div class="form-group"><label>締め日</label><select id="mc-closing"><option value="">末締め</option><option value="5">5日締め</option><option value="10">10日締め</option><option value="15">15日締め</option><option value="20">20日締め</option><option value="25">25日締め</option></select></div>
+          <div class="form-group"><label>決算月（ダッシュボードの第○期に反映）</label><select id="mc-fiscal"><option value="">未設定</option><option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option><option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option><option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option></select></div>
+          <div class="form-group"><label>第1期の決算年（例：1969）</label><input type="text" id="mc-firstfy" placeholder="第58期などの計算に使います"></div>
           <div class="form-group full" style="margin-top:6px;padding:8px 12px;background:var(--bg3);border-radius:8px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center;">👤 担当者
             <button type="button" class="btn btn-ghost btn-sm" onclick="addMcContactRow()">＋ 担当者追加</button>
           </div>
@@ -2306,6 +2308,8 @@ function loadMyCompany(){
   sel.innerHTML=list.map((c,i)=>`<option value="${i}"${i===mcIdx?' selected':''}>${escapeHtml(c.name||('会社'+(i+1)))}</option>`).join('');
   const c=list[mcIdx]||{};
   MC_FIELDS.forEach(k=>{ const el=document.getElementById(MC_IDS[k]); if(el) el.value=c[k]||''; });
+  const _ff=document.getElementById('mc-fiscal'); if(_ff) _ff.value=DB.company.fiscalMonth||'';
+  const _fy=document.getElementById('mc-firstfy'); if(_fy) _fy.value=DB.company.firstFiscalYear||'';
   document.getElementById('mc-contact-rows').innerHTML=''; (c.contacts||[]).forEach(x=>addMcContactRow(x));
   document.getElementById('mc-bank-rows').innerHTML=''; (c.banks||[]).forEach(x=>addMcBankRow(x));
   document.getElementById('mc-link-rows').innerHTML=''; (c.links||[]).forEach(x=>addMcLinkRow(x));
@@ -2324,6 +2328,10 @@ function saveMyCompany(){
   const list=_mcList();
   const c=list[mcIdx]||(list[mcIdx]={});
   MC_FIELDS.forEach(k=>{ const el=document.getElementById(MC_IDS[k]); if(el) c[k]=el.value.trim(); });
+  const _ffEl=document.getElementById('mc-fiscal');
+  if(_ffEl){ const m=parseInt(_ffEl.value,10); DB.company.fiscalMonth=(m>=1&&m<=12)?m:null; }
+  const _fyEl=document.getElementById('mc-firstfy');
+  if(_fyEl){ const y=parseInt(_fyEl.value,10); DB.company.firstFiscalYear=(y>1900&&y<2100)?y:null; }
   c.contacts=[...document.querySelectorAll('#mc-contact-rows .mc-contact-row')].map(r=>({name:r.querySelector('.mcc-name').value.trim(),tel:r.querySelector('.mcc-tel').value.trim(),email:r.querySelector('.mcc-email').value.trim(),note:r.querySelector('.mcc-note').value.trim()})).filter(x=>x.name||x.tel||x.email||x.note);
   c.banks=[...document.querySelectorAll('#mc-bank-rows .mc-bank-row')].map(r=>({bank:r.querySelector('.mcb-bank').value.trim(),branch:r.querySelector('.mcb-branch').value.trim(),type:r.querySelector('.mcb-type').value,num:r.querySelector('.mcb-num').value.trim(),name:r.querySelector('.mcb-name').value.trim()})).filter(x=>x.bank||x.num||x.name);
   c.links=[...document.querySelectorAll('#mc-link-rows .mc-link-row')].map(r=>({name:r.querySelector('.mcl-name').value.trim(),url:r.querySelector('.mcl-url').value.trim()})).filter(x=>x.name||x.url);
@@ -2331,6 +2339,7 @@ function saveMyCompany(){
   if(mcIdx===0){ MC_FIELDS.forEach(k=>{ DB.company[k]=c[k]; }); }
   save();
   loadMyCompany();
+  try{ renderDashboard(); }catch(e){}
   showToast('自社情報を保存しました');
 }
 
@@ -2409,18 +2418,8 @@ function renderSalesFiscal(){
 
 // ===== 決算期（自社設定） =====
 function setupFiscal(){
-  const fm = prompt('決算月を入力してください（1〜12）\n例：8月決算なら 8', DB.company.fiscalMonth||'');
-  if(fm===null) return;
-  const m = parseInt(fm,10);
-  if(!(m>=1&&m<=12)){ showToast('1〜12で入力してください','error'); return; }
-  const fy = prompt('第1期の決算年を入力してください\n例：2015年8月末が第1期の決算なら 2015', DB.company.firstFiscalYear||'');
-  if(fy===null) return;
-  const y = parseInt(fy,10);
-  if(!(y>1950&&y<2100)){ showToast('年を正しく入力してください','error'); return; }
-  DB.company.fiscalMonth = m;
-  DB.company.firstFiscalYear = y;
-  save(); renderDashboard();
-  showToast('決算期を設定しました');
+  showSection('mycompany');
+  showToast('自社情報の「決算月」「第1期の決算年」を入力して保存してください');
 }
 // 実績の売上月が属する「決算年」（決算月で締まる年度の、決算する年）
 function _fiscalYearOf(ym, fm){
@@ -2429,7 +2428,7 @@ function _fiscalYearOf(ym, fm){
 function _fiscalCard(){
   const fm = DB.company.fiscalMonth;
   if(!fm){
-    return `<div class="stat-card purple" onclick="showSection('sales-fiscal')" style="cursor:pointer;"><div class="stat-label">決算期売上（未設定）</div><div class="stat-value" style="font-size:15px;">タップして設定</div><div class="stat-sub">決算月と第1期を登録</div></div>`;
+    return `<div class="stat-card purple" onclick="showSection('sales-fiscal')" style="cursor:pointer;"><div class="stat-label">決算期売上（未設定）</div><div class="stat-value" style="font-size:15px;">未設定</div><div class="stat-sub">自社情報で決算月を登録</div></div>`;
   }
   const now = new Date();
   const nowYM = { y: now.getFullYear(), m: now.getMonth()+1 };
