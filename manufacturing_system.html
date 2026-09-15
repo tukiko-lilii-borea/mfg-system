@@ -5966,15 +5966,40 @@ async function odLoad() {
     }
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
+    // 安全装置①：読み込むデータが今より少ないなら件数を見せて警告
+    const curN = (DB.productions||[]).length;
+    const newN = (data.productions||[]).length;
+    if (newN < curN) {
+      if (!confirm('⚠ 読み込むバックアップの実績は '+newN+'件、今の画面には '+curN+'件あります。\n読み込むと今のデータ（今日の作業分など）が古い内容で上書きされます。\n\n本当に読み込みますか？')) { showToast('読込をキャンセルしました'); return false; }
+    }
+    // 安全装置②：直前の状態を退避（↩ボタンで戻せる）
+    try { localStorage.setItem('mfg_db_undo', JSON.stringify(DB)); localStorage.setItem('mfg_db_undo_ts', String(Date.now())); } catch(e){}
     Object.assign(DB, data);
     if (typeof save === 'function') save();
-    if (typeof renderDashboard === 'function') renderDashboard();
-    showToast('✅ 読み込みました', 'success');
+    if (typeof refreshAllViews === 'function') refreshAllViews(); else if (typeof renderDashboard === 'function') renderDashboard();
+    showToast('✅ 読み込みました（右下の ↩ で直前に戻せます）', 'success');
     return true;
   } catch (e) {
     showToast('❌ 読込失敗', 'error');
     return false;
   }
+}
+
+// 読込の取り消し（直前の状態と入れ替え。もう一回押すと戻る）
+function odUndoLoad(){
+  const u = localStorage.getItem('mfg_db_undo');
+  if(!u){ showToast('取り消せる読込がありません','error'); return; }
+  if(!confirm('「読込」前の状態に戻します。よろしいですか？\n（もう一度押すと、読込後の状態と入れ替わります）')) return;
+  try{
+    const cur = JSON.stringify(DB);
+    const obj = JSON.parse(u);
+    localStorage.setItem('mfg_db_undo', cur);
+    Object.keys(DB).forEach(function(k){ delete DB[k]; });
+    Object.assign(DB, obj);
+    save();
+    refreshAllViews();
+    showToast('↩ 直前の状態に戻しました');
+  }catch(e){ showToast('復元に失敗しました','error'); }
 }
 
 function initOneDriveSection() {
@@ -7145,6 +7170,11 @@ document.documentElement.style.setProperty('font-size','17px');
       '<button type="button" id="od-quick-save" style="font-size:12px;padding:4px 10px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08);transition:background 0.2s,color 0.2s;">☁️保存</button>'+
       '<button type="button" id="od-quick-load" style="font-size:12px;padding:4px 10px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08);">☁️読込</button>';
     document.body.appendChild(bar);
+  const ub=document.createElement('button');
+  ub.type='button'; ub.textContent='↩'; ub.title='読込取消（直前の状態に戻す）';
+  ub.style.cssText='font-size:12px;padding:4px 9px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;cursor:pointer;';
+  ub.onclick=function(){ odUndoLoad(); };
+  bar.appendChild(ub);
     // クイックバーのボタンは odSave/odLoad を呼ぶだけ（色変えなし）
     document.getElementById('od-quick-save').addEventListener('click',function(){
       if(window.odSave) window.odSave();
