@@ -1225,7 +1225,7 @@
         </div>
       </div>
       <div class="tabs" style="margin-bottom:12px;">
-        <div class="tab active" id="mt-tab-date" onclick="mtView('date')">📅 日付順</div>
+        <div class="tab active" id="mt-tab-date" onclick="mtView('date')">🚚 納期順</div>
         <div class="tab" id="mt-tab-sup" onclick="mtView('sup')">🏭 発注先別</div>
       </div>
       <div class="card">
@@ -2391,7 +2391,13 @@ function renderMatCheck(){
   _mtEnsure();
   document.getElementById('mt-label').textContent=_mtY+'年'+_mtM+'月';
   const ym=_mtY+'-'+String(_mtM).padStart(2,'0');
-  const recs=(DB.productions||[]).filter(function(r){ return (r.date||'').startsWith(ym); }).sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+  const recs=(DB.productions||[]).filter(function(r){ return (r.date||'').startsWith(ym); }).sort(function(a,b){
+    const da=_parseDue(a.due), db_=_parseDue(b.due);
+    if(da&&db_){ if(da-db_!==0) return da-db_; return (a.date||'').localeCompare(b.date||''); }
+    if(da) return -1;
+    if(db_) return 1;
+    return (a.date||'').localeCompare(b.date||'');
+  });
   const rows=[];
   recs.forEach(function(r){ ((r.materials&&r.materials.length)?r.materials:[null]).forEach(function(m){ rows.push({r:r,m:m}); }); });
   if(!rows.length){ body.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">この月の実績はありません</div>'; return; }
