@@ -2494,6 +2494,8 @@ function renderMatCheck(){
 // ===== 売上集計（決算期） =====
 let _sfY = null, _sfM = 0, _sfQ = '';
 function sfSetYear(v){ _sfY = parseInt(v,10); _sfM=0; renderSalesFiscal(); }
+let _sfT='prod';
+function sfSetT(t){ _sfT=t; renderSalesFiscal(); }
 function sfSetMonth(m){ _sfM = m; renderSalesFiscal(); }
 function sfSetQ(v){ _sfQ = (v||'').toLowerCase(); renderSalesFiscal(); }
 function renderSalesFiscal(){
@@ -2537,31 +2539,61 @@ function renderSalesFiscal(){
   const cl={};
   flist.forEach(function(p){ const c=p.client||'（受注先なし）'; if(!cl[c])cl[c]={sales:0,cnt:0}; cl[c].sales+=_recSales(p); cl[c].cnt++; });
   const crows=Object.entries(cl).sort(function(a,b){return b[1].sales-a[1].sales;});
-  const tabs='<div class="tabs" style="margin-bottom:14px;"><div class="tab'+(!_sfM?' active':'')+'" onclick="sfSetMonth(0)">全期間</div>'+months.map(function(m){return '<div class="tab'+(_sfM===m?' active':'')+'" onclick="sfSetMonth('+m+')">'+m+'月</div>';}).join('')+'</div>';
-  let ph='';
-  prows.forEach(function(r){
-    const g=r.sales-r.cost;
-    ph+='<tr onclick="showSalesBreakdown(\''+(r.fignum||'').replace(/'/g,"\\'")+'\')" style="cursor:pointer;"><td>'+(r.fignum?'<span class="badge badge-blue">'+escapeHtml(r.fignum)+'</span>':'—')+'</td><td>'+escapeHtml(r.name)+'</td><td>'+escapeHtml(r.client)+'</td><td style="text-align:right;">'+r.cnt+'件</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(r.sales)+'</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(r.cost)+'</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(g)+'</td><td style="text-align:right;">'+(r.sales?(g/r.sales*100).toFixed(1):'0.0')+'%</td></tr>';
-  });
-  if(!ph) ph='<tr><td colspan="8" style="text-align:center;color:var(--text3);">データがありません</td></tr>';
-  const tg=tSales-tCost;
-  ph+='<tr style="font-weight:700;border-top:2px solid var(--border);"><td>合計</td><td></td><td></td><td style="text-align:right;">'+tCnt+'件</td><td style="text-align:right;">¥'+fmt(tSales)+'</td><td style="text-align:right;">¥'+fmt(tCost)+'</td><td style="text-align:right;">¥'+fmt(tg)+'</td><td style="text-align:right;">'+(tSales?(tg/tSales*100).toFixed(1):'0.0')+'%</td></tr>';
-  let ch='';
-  crows.forEach(function(e){
-    const c=e[0],d=e[1];
-    ch+='<tr onclick="jumpToProduction(\''+c.replace(/'/g,"\\'")+'\')" style="cursor:pointer;"><td>'+escapeHtml(c)+'</td><td style="text-align:right;">'+d.cnt+'件</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(d.sales)+'</td><td style="text-align:right;">'+(tSales?(d.sales/tSales*100).toFixed(1):'0.0')+'%</td></tr>';
-  });
-  if(!ch) ch='<tr><td colspan="4" style="text-align:center;color:var(--text3);">データがありません</td></tr>';
+  const tabs='<div class="tabs" style="margin-bottom:10px;"><div class="tab'+(!_sfM?' active':'')+'" onclick="sfSetMonth(0)">全期間</div>'+months.map(function(m){return '<div class="tab'+(_sfM===m?' active':'')+'" onclick="sfSetMonth('+m+')">'+m+'月</div>';}).join('')+'</div>';
+  const vtabs='<div class="tabs" style="margin-bottom:14px;">'
+    +'<div class="tab'+(_sfT==='prod'?' active':'')+'" onclick="sfSetT(\'prod\')">📦 製品別売上</div>'
+    +'<div class="tab'+(_sfT==='client'?' active':'')+'" onclick="sfSetT(\'client\')">🏢 会社別売上</div>'
+    +'<div class="tab'+(_sfT==='day'?' active':'')+'" onclick="sfSetT(\'day\')">📅 日別売上</div>'
+    +'</div>';
   const label=(!_sfM?'全期間':_sfM+'月');
-  body.innerHTML = tabs
+  let table='';
+  if(_sfT==='prod'){
+    let ph='';
+    prows.forEach(function(r){
+      const g=r.sales-r.cost;
+      ph+='<tr onclick="showSalesBreakdown(\''+(r.fignum||'').replace(/'/g,"\\'")+'\')" style="cursor:pointer;"><td>'+(r.fignum?'<span class="badge badge-blue">'+escapeHtml(r.fignum)+'</span>':'—')+'</td><td>'+escapeHtml(r.name)+'</td><td>'+escapeHtml(r.client)+'</td><td style="text-align:right;">'+r.cnt+'件</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(r.sales)+'</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(r.cost)+'</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(g)+'</td><td style="text-align:right;">'+(r.sales?(g/r.sales*100).toFixed(1):'0.0')+'%</td></tr>';
+    });
+    if(!ph) ph='<tr><td colspan="8" style="text-align:center;color:var(--text3);">データがありません</td></tr>';
+    const tg=tSales-tCost;
+    ph+='<tr style="font-weight:700;border-top:2px solid var(--border);"><td>合計</td><td></td><td></td><td style="text-align:right;">'+tCnt+'件</td><td style="text-align:right;">¥'+fmt(tSales)+'</td><td style="text-align:right;">¥'+fmt(tCost)+'</td><td style="text-align:right;">¥'+fmt(tg)+'</td><td style="text-align:right;">'+(tSales?(tg/tSales*100).toFixed(1):'0.0')+'%</td></tr>';
+    table='<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;"><span>製品別売上（'+label+'）</span><input type="text" value="'+escapeHtml(_sfQ)+'" oninput="sfSetQ(this.value)" placeholder="🔍 図番・品名・受注先で検索" style="width:260px;"></div>'
+      +'<div class="table-wrap"><table style="width:100%;font-size:13px;font-weight:600;"><thead><tr><th>図番</th><th>品名</th><th>受注先</th><th style="text-align:right;">件数</th><th style="text-align:right;">売上</th><th style="text-align:right;">原価</th><th style="text-align:right;">粗利</th><th style="text-align:right;">粗利率</th></tr></thead><tbody>'+ph+'</tbody></table></div></div>';
+  } else if(_sfT==='client'){
+    let ch='';
+    crows.forEach(function(e){
+      const c=e[0], d=e[1];
+      ch+='<tr onclick="showClientBreakdown(\''+c.replace(/'/g,"\\'")+'\')" style="cursor:pointer;"><td>'+escapeHtml(c)+'</td><td style="text-align:right;">'+d.cnt+'件</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(d.sales)+'</td><td style="text-align:right;">'+(tSales?(d.sales/tSales*100).toFixed(1):'0.0')+'%</td></tr>';
+    });
+    if(!ch) ch='<tr><td colspan="4" style="text-align:center;color:var(--text3);">データがありません</td></tr>';
+    table='<div class="card"><div class="card-title">会社別売上（'+label+'）</div><div class="table-wrap"><table style="width:100%;font-size:13px;font-weight:600;"><thead><tr><th>受注先</th><th style="text-align:right;">件数</th><th style="text-align:right;">売上</th><th style="text-align:right;">構成比</th></tr></thead><tbody>'+ch+'</tbody></table></div></div>';
+  } else {
+    // 日別売上（納期日ベース。納期なしは作業日）
+    const perDay={};
+    flist.forEach(function(p){
+      const dt=_parseDue(p.due)||new Date(p.date);
+      const key=(dt.getMonth()+1)+'/'+dt.getDate();
+      const sortk=(dt.getMonth()+1)*100+dt.getDate();
+      if(!perDay[key]) perDay[key]={sales:0,cost:0,cnt:0,qty:0,k:sortk};
+      perDay[key].sales+=_recSales(p); perDay[key].cost+=_recCost(p); perDay[key].cnt++; perDay[key].qty+=(p.qty||0);
+    });
+    const dkeys=Object.keys(perDay).sort(function(a,b){return perDay[a].k-perDay[b].k;});
+    let dh='';
+    const maxD=Math.max.apply(null, dkeys.map(function(k){return perDay[k].sales;}).concat([1]));
+    dkeys.forEach(function(k){
+      const d=perDay[k], g=d.sales-d.cost;
+      dh+='<tr onclick="showDayBreakdown(\''+k+'\')" style="cursor:pointer;"><td style="white-space:nowrap;font-weight:700;">'+k+'</td><td style="text-align:right;">'+d.cnt+'件</td><td style="text-align:right;">'+d.qty+' 個</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(d.sales)+'</td><td style="text-align:right;white-space:nowrap;">¥'+fmt(g)+'</td><td style="width:35%;"><div style="height:14px;border-radius:4px;background:#2563eb;width:'+Math.max(d.sales/maxD*100,2)+'%;"></div></td></tr>';
+    });
+    if(!dh) dh='<tr><td colspan="6" style="text-align:center;color:var(--text3);">データがありません</td></tr>';
+    table='<div class="card"><div class="card-title">日別売上（'+label+'・納期日ベース）</div><div class="table-wrap"><table style="width:100%;font-size:13px;font-weight:600;"><thead><tr><th>日付</th><th style="text-align:right;">件数</th><th style="text-align:right;">数量</th><th style="text-align:right;">売上</th><th style="text-align:right;">粗利</th><th></th></tr></thead><tbody>'+dh+'</tbody></table></div></div>';
+  }
+  body.innerHTML = tabs + vtabs
     +'<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">'
     +'<div class="stat-card purple"><div class="stat-label">'+kiName(_sfY)+'・'+label+' 売上</div><div class="stat-value">¥'+fmt(tSales)+'</div><div class="stat-sub">'+tCnt+'件</div></div>'
-    +'<div class="stat-card green"><div class="stat-label">粗利</div><div class="stat-value">¥'+fmt(tg)+'</div><div class="stat-sub">粗利率 '+(tSales?(tg/tSales*100).toFixed(1):'0.0')+'%</div></div>'
+    +'<div class="stat-card green"><div class="stat-label">粗利</div><div class="stat-value">¥'+fmt(tSales-tCost)+'</div><div class="stat-sub">粗利率 '+(tSales?((tSales-tCost)/tSales*100).toFixed(1):'0.0')+'%</div></div>'
     +'<div class="stat-card blue"><div class="stat-label">月平均（期全体）</div><div class="stat-value">¥'+fmt(Math.round(inFY.reduce(function(a,p){return a+_recSales(p);},0)/12))+'</div><div class="stat-sub">12ヶ月換算</div></div>'
     +'</div>'
-    +'<div class="card" style="margin-bottom:20px;"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center;"><span>製品別売上（'+label+'）</span><input type="text" value="'+escapeHtml(_sfQ)+'" oninput="sfSetQ(this.value)" placeholder="🔍 図番・品名・受注先で検索" style="width:260px;"></div>'
-    +'<div class="table-wrap"><table style="width:100%;font-size:13px;"><thead><tr><th>図番</th><th>品名</th><th>受注先</th><th style="text-align:right;">件数</th><th style="text-align:right;">売上</th><th style="text-align:right;">原価</th><th style="text-align:right;">粗利</th><th style="text-align:right;">粗利率</th></tr></thead><tbody>'+ph+'</tbody></table></div></div>'
-    +'<div class="card"><div class="card-title">会社別売上（'+label+'）</div><div class="table-wrap"><table style="width:100%;font-size:13px;"><thead><tr><th>受注先</th><th style="text-align:right;">件数</th><th style="text-align:right;">売上</th><th style="text-align:right;">構成比</th></tr></thead><tbody>'+ch+'</tbody></table></div></div>';
+    + table;
+
   const inp=body.querySelector('input'); if(inp && _sfQ){ inp.focus(); const v=inp.value; inp.value=''; inp.value=v; }
 }
 
@@ -4507,9 +4539,68 @@ function _enrichProducts(prodAgg) {
     return {fignum:pa.fignum,name:pa.name||(master&&master.name)||'',client:getClient(pa.fignum),count:pa.count,sales:pa.sales,mat:pa.mat,os:os,gross:gross,rate:rate,sec:pa.sec};
   }).sort(function(a,b){return b.sales-a.sales;});
 }
-function _clientRow(e,grand){var pct=grand?(e[1].total/grand*100).toFixed(1):'0.0';return '<tr onclick="jumpToProduction(\''+e[0].replace(/'/g,"\\'")+'\')" style="cursor:pointer;" title="クリックで実績を開く"><td>'+e[0]+'</td><td>'+e[1].count+'件</td><td>¥'+fmt(e[1].total)+'</td><td>'+pct+'%</td></tr>';}
+function _clientRow(e,grand){var pct=grand?(e[1].total/grand*100).toFixed(1):'0.0';return '<tr onclick="showClientBreakdown(\''+e[0].replace(/'/g,"\\'")+'\')" style="cursor:pointer;" title="クリックで内訳を見る"><td>'+e[0]+'</td><td>'+e[1].count+'件</td><td>¥'+fmt(e[1].total)+'</td><td>'+pct+'%</td></tr>';}
 function _matRow(e,grand){var pct=grand?(e[1].total/grand*100).toFixed(1):'0.0';return '<tr><td>'+e[0]+'</td><td>'+e[1].count+'件</td><td>¥'+fmt(e[1].total)+'</td><td>'+pct+'%</td></tr>';}
 function _machineRow(e){return '<tr><td>'+e[0]+'</td><td>'+fmtDuration(e[1].sec)+'</td><td>'+e[1].count+'件</td><td>¥'+fmt(e[1].sales)+'</td></tr>';}
+// 日別売上の内訳
+function showDayBreakdown(dayKey){
+  const recs = (window._sbRecs||[]).filter(function(r){
+    const dt=_parseDue(r.due)||new Date(r.date);
+    return ((dt.getMonth()+1)+'/'+dt.getDate())===dayKey;
+  }).sort(function(a,b){ return (a.client||'').localeCompare(b.client||'','ja'); });
+  if(!recs.length){ showToast('内訳データが見つかりません','error'); return; }
+  document.getElementById('sb-title').textContent = dayKey + '　の内訳（'+recs.length+'件）';
+  let tS=0,tC=0,tQ=0;
+  const rows = recs.map(function(r){
+    const s=_recSales(r), c=_recCost(r), g=s-c;
+    tS+=s; tC+=c; tQ+=(r.qty||0);
+    return '<tr onclick="closeModal(\'sales-break-modal\');showProdDetail(\''+r.id+'\')" style="cursor:pointer;" title="クリックで詳細">'
+      +'<td style="white-space:nowrap;">'+escapeHtml(r.client||'—')+'</td>'
+      +'<td>'+(r.fignum?'<span class="badge badge-blue">'+escapeHtml(r.fignum)+'</span> ':'')+escapeHtml(r.name||'')+'</td>'
+      +'<td style="text-align:right;white-space:nowrap;">'+(r.qty||0)+' 個</td>'
+      +'<td style="text-align:right;white-space:nowrap;">¥'+fmt(s)+'</td>'
+      +'<td style="text-align:right;white-space:nowrap;">¥'+fmt(g)+'</td>'
+      +'</tr>';
+  }).join('');
+  document.getElementById('sb-body').innerHTML =
+    '<div class="table-wrap"><table style="width:100%;font-size:13px;font-weight:600;">'
+    +'<thead><tr><th>受注先</th><th>図番 / 品名</th><th style="text-align:right;">数量</th><th style="text-align:right;">売上</th><th style="text-align:right;">粗利</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr style="font-weight:700;border-top:2px solid var(--border);"><td>合計</td><td></td><td style="text-align:right;">'+tQ+' 個</td><td style="text-align:right;">¥'+fmt(tS)+'</td><td style="text-align:right;">¥'+fmt(tS-tC)+'</td></tr></tfoot>'
+    +'</table></div>';
+  openModal('sales-break-modal');
+}
+
+// 会社別売上の内訳（何を・いつ・何個）→ 各行から実績詳細へ
+function showClientBreakdown(client){
+  const recs = (window._sbRecs||[]).filter(function(r){ return (r.client||'（受注先なし）')===client || (r.client||'')===client; })
+    .sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+  if(!recs.length){ showToast('内訳データが見つかりません','error'); return; }
+  document.getElementById('sb-title').textContent = client + '　の内訳（'+recs.length+'件）';
+  let tS=0,tC=0,tQ=0;
+  const rows = recs.map(function(r){
+    const s=_recSales(r), c=_recCost(r), g=s-c;
+    tS+=s; tC+=c; tQ+=(r.qty||0);
+    return '<tr onclick="closeModal(\'sales-break-modal\');showProdDetail(\''+r.id+'\')" style="cursor:pointer;" title="クリックで詳細">'
+      +'<td style="white-space:nowrap;">'+escapeHtml(r.date||'')+'</td>'
+      +'<td style="white-space:nowrap;'+(r.due?'':'color:var(--text3);')+'">'+escapeHtml(r.due||'—')+'</td>'
+      +'<td>'+(r.fignum?'<span class="badge badge-blue">'+escapeHtml(r.fignum)+'</span> ':'')+escapeHtml(r.name||'')+'</td>'
+      +'<td style="text-align:right;white-space:nowrap;">'+(r.qty||0)+' 個</td>'
+      +'<td style="text-align:right;white-space:nowrap;">¥'+fmt(s)+'</td>'
+      +'<td style="text-align:right;white-space:nowrap;">¥'+fmt(c)+'</td>'
+      +'<td style="text-align:right;white-space:nowrap;">¥'+fmt(g)+'</td>'
+      +'</tr>';
+  }).join('');
+  document.getElementById('sb-body').innerHTML =
+    '<div style="font-size:12px;color:var(--text2);margin-bottom:8px;">💡 原価＝材料費＋外注費。行をクリックすると1件ずつの詳細が見れます</div>'
+    +'<div class="table-wrap"><table style="width:100%;font-size:13px;font-weight:600;">'
+    +'<thead><tr><th>作業日</th><th>納期</th><th>図番 / 品名</th><th style="text-align:right;">数量</th><th style="text-align:right;">売上</th><th style="text-align:right;">原価</th><th style="text-align:right;">粗利</th></tr></thead>'
+    +'<tbody>'+rows+'</tbody>'
+    +'<tfoot><tr style="font-weight:700;border-top:2px solid var(--border);"><td>合計</td><td></td><td></td><td style="text-align:right;">'+tQ+' 個</td><td style="text-align:right;">¥'+fmt(tS)+'</td><td style="text-align:right;">¥'+fmt(tC)+'</td><td style="text-align:right;">¥'+fmt(tS-tC)+'</td></tr></tfoot>'
+    +'</table></div>';
+  openModal('sales-break-modal');
+}
+
 // 製品別売上の内訳（いつ・何個・いくら）→ 各行から実績詳細へ
 function showSalesBreakdown(fignum){
   const recs = (window._sbRecs||[]).filter(function(r){ return (r.fignum||'')===(fignum||''); })
