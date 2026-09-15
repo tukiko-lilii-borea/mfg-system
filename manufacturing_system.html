@@ -1226,7 +1226,19 @@
         <div class="tab" id="mt-tab-sup" onclick="mtView('sup')">🏭 発注先別</div>
       </div>
       <div style="margin-bottom:10px;">
-        <input type="text" id="mt-q" oninput="mtSetQ(this.value)" placeholder="🔍 検索：発注日（9/3）・図番・品名・受注先・発注先・素材・寸法" style="width:400px;max-width:100%;">
+        <button class="btn btn-ghost btn-sm" onclick="mtToggleSearch()">🔍 詳細検索</button>
+      </div>
+      <div id="mt-search-panel" style="display:none;margin-bottom:12px;padding:12px 14px;border:1.5px solid #8fa3bf;border-radius:10px;background:var(--bg2);">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
+          <div><label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:2px;">発注日（例：9/3）</label><input type="text" oninput="mtSetF('date',this.value)"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:2px;">納期</label><input type="text" oninput="mtSetF('due',this.value)"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:2px;">図番（品番）</label><input type="text" oninput="mtSetF('fignum',this.value)"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:2px;">品名</label><input type="text" oninput="mtSetF('name',this.value)"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:2px;">受注先</label><input type="text" oninput="mtSetF('client',this.value)"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:2px;">材料発注先</label><input type="text" oninput="mtSetF('supplier',this.value)"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:2px;">素材・寸法</label><input type="text" oninput="mtSetF('mat',this.value)"></div>
+        </div>
+        <div style="margin-top:10px;text-align:right;"><button class="btn btn-ghost btn-xs" onclick="mtClearSearch()">✕ クリア</button></div>
       </div>
       <div class="card">
         <div id="mt-body" class="table-wrap"></div>
@@ -2367,11 +2379,13 @@ function saveMyCompany(){
 }
 
 // ===== 材料手配チェック =====
-let _mtY=null,_mtM=null,_mtV='date',_mtQ='';
+let _mtY=null,_mtM=null,_mtV='date',_mtF={};
 function _mtEnsure(){ if(!_mtY||_mtY<2000){ _mtY=(new Date()).getFullYear(); } if(_mtM==null){ _mtM=(new Date()).getMonth()+1; } }
 function mtSetYear(v){ _mtY=parseInt(v,10); renderMatCheck(); }
 function mtSetMonth(m){ _mtM=m; renderMatCheck(); }
-function mtSetQ(v){ _mtQ=(v||'').toLowerCase().trim(); renderMatCheck(); }
+function mtToggleSearch(){ const p=document.getElementById('mt-search-panel'); p.style.display = (p.style.display==='none') ? 'block' : 'none'; }
+function mtSetF(k,v){ _mtF[k]=(v||'').toLowerCase().trim(); renderMatCheck(); }
+function mtClearSearch(){ _mtF={}; document.querySelectorAll('#mt-search-panel input').forEach(function(i){ i.value=''; }); renderMatCheck(); }
 function mtView(v){ _mtV=v; document.getElementById('mt-tab-date').classList.toggle('active',v==='date'); document.getElementById('mt-tab-sup').classList.toggle('active',v==='sup'); renderMatCheck(); }
 function _mtRow(r,m,showSup){
   const isShikyu = m && m.supplier==='材料支給';
@@ -2415,17 +2429,23 @@ function renderMatCheck(){
   recs.forEach(function(r){ ((r.materials&&r.materials.length)?r.materials:[null]).forEach(function(m){ rows.push({r:r,m:m}); }); });
   if(!rows.length){ body.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">この月の納期の材料はありません</div>'; return; }
   let vrows=rows;
-  if(_mtQ){
-    const q=_mtQ;
+  const F=_mtF||{};
+  if(Object.keys(F).some(function(k){ return F[k]; })){
+    const chk=function(q,vals){ if(!q) return true; const hay=vals.filter(Boolean).join(' ').toLowerCase(); return hay.indexOf(q)>=0; };
     vrows=rows.filter(function(x){
       const r=x.r, m=x.m;
       const d=(r.date||'');
       const md=d.slice(5).replace('-','/');
       const md2=md.replace(/^0/,'').replace(/\/0/,'/');
-      const hay=[r.client,r.fignum,r.name,r.due,d,md,md2,m&&m.supplier,m&&m.name,m&&m.size].filter(Boolean).join(' ').toLowerCase();
-      return hay.indexOf(q)>=0;
+      return chk(F.date,[d,md,md2])
+        && chk(F.due,[r.due])
+        && chk(F.fignum,[r.fignum])
+        && chk(F.name,[r.name])
+        && chk(F.client,[r.client])
+        && chk(F.supplier,[m&&m.supplier])
+        && chk(F.mat,[m&&m.name, m&&m.size]);
     });
-    if(!vrows.length){ body.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">検索に一致する行がありません</div>'; return; }
+    if(!vrows.length){ body.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">検索条件に一致する行がありません</div>'; return; }
   }
   let cnt=0, shikyu=0, nomat=0;
   vrows.forEach(function(x){ if(x.m){ cnt++; if(x.m.supplier==='材料支給') shikyu++; } else nomat++; });
