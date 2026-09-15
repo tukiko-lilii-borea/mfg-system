@@ -1225,6 +1225,9 @@
         <div class="tab active" id="mt-tab-date" onclick="mtView('date')">🚚 納期順</div>
         <div class="tab" id="mt-tab-sup" onclick="mtView('sup')">🏭 発注先別</div>
       </div>
+      <div style="margin-bottom:10px;">
+        <input type="text" id="mt-q" oninput="mtSetQ(this.value)" placeholder="🔍 検索：発注日（9/3）・図番・品名・受注先・発注先・素材・寸法" style="width:400px;max-width:100%;">
+      </div>
       <div class="card">
         <div id="mt-body" class="table-wrap"></div>
       </div>
@@ -2364,10 +2367,11 @@ function saveMyCompany(){
 }
 
 // ===== 材料手配チェック =====
-let _mtY=null,_mtM=null,_mtV='date';
+let _mtY=null,_mtM=null,_mtV='date',_mtQ='';
 function _mtEnsure(){ if(!_mtY||_mtY<2000){ _mtY=(new Date()).getFullYear(); } if(_mtM==null){ _mtM=(new Date()).getMonth()+1; } }
 function mtSetYear(v){ _mtY=parseInt(v,10); renderMatCheck(); }
 function mtSetMonth(m){ _mtM=m; renderMatCheck(); }
+function mtSetQ(v){ _mtQ=(v||'').toLowerCase().trim(); renderMatCheck(); }
 function mtView(v){ _mtV=v; document.getElementById('mt-tab-date').classList.toggle('active',v==='date'); document.getElementById('mt-tab-sup').classList.toggle('active',v==='sup'); renderMatCheck(); }
 function _mtRow(r,m,showSup){
   const isShikyu = m && m.supplier==='材料支給';
@@ -2380,6 +2384,7 @@ function _mtRow(r,m,showSup){
     +(showSup?'<td style="white-space:nowrap;">'+supCell+'</td>':'')
     +'<td>'+escapeHtml(m&&m.name||'—')+'</td>'
     +'<td style="white-space:nowrap;">'+escapeHtml(m&&m.size||'—')+'</td>'
+    +'<td style="text-align:right;white-space:nowrap;">'+(m?'¥'+fmt(m.price||0):'—')+'</td>'
     +'<td style="text-align:right;white-space:nowrap;">'+(m&&m.qty?m.qty+' ヶ':'—')+'</td>'
     +'</tr>';
 }
@@ -2409,20 +2414,33 @@ function renderMatCheck(){
   const rows=[];
   recs.forEach(function(r){ ((r.materials&&r.materials.length)?r.materials:[null]).forEach(function(m){ rows.push({r:r,m:m}); }); });
   if(!rows.length){ body.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">この月の納期の材料はありません</div>'; return; }
+  let vrows=rows;
+  if(_mtQ){
+    const q=_mtQ;
+    vrows=rows.filter(function(x){
+      const r=x.r, m=x.m;
+      const d=(r.date||'');
+      const md=d.slice(5).replace('-','/');
+      const md2=md.replace(/^0/,'').replace(/\/0/,'/');
+      const hay=[r.client,r.fignum,r.name,r.due,d,md,md2,m&&m.supplier,m&&m.name,m&&m.size].filter(Boolean).join(' ').toLowerCase();
+      return hay.indexOf(q)>=0;
+    });
+    if(!vrows.length){ body.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">検索に一致する行がありません</div>'; return; }
+  }
   let cnt=0, shikyu=0, nomat=0;
-  rows.forEach(function(x){ if(x.m){ cnt++; if(x.m.supplier==='材料支給') shikyu++; } else nomat++; });
+  vrows.forEach(function(x){ if(x.m){ cnt++; if(x.m.supplier==='材料支給') shikyu++; } else nomat++; });
   const summary='<div style="font-size:12px;color:var(--text2);margin-bottom:10px;">材料 '+cnt+'行（うち材料支給 '+shikyu+'）'+(nomat?'　<span style="color:#dc2626;font-weight:700;">⚠ 材料情報なし '+nomat+'件</span>':'')+'　※行クリックで詳細</div>';
-  const TH_FULL='<thead><tr><th>発注日</th><th>納期</th><th>受注先</th><th>図番 / 品名</th><th>材料発注先</th><th>素材</th><th>材料寸法</th><th style="text-align:right;">個数</th></tr></thead>';
-  const TH_SUP='<thead><tr><th>発注日</th><th>納期</th><th>受注先</th><th>図番 / 品名</th><th>素材</th><th>材料寸法</th><th style="text-align:right;">個数</th></tr></thead>';
+  const TH_FULL='<thead><tr><th>発注日</th><th>納期</th><th>受注先</th><th>図番 / 品名</th><th>材料発注先</th><th>素材</th><th>材料寸法</th><th style="text-align:right;">材料単価</th><th style="text-align:right;">個数</th></tr></thead>';
+  const TH_SUP='<thead><tr><th>発注日</th><th>納期</th><th>受注先</th><th>図番 / 品名</th><th>素材</th><th>材料寸法</th><th style="text-align:right;">材料単価</th><th style="text-align:right;">個数</th></tr></thead>';
   if(_mtV==='date'){
-    let h='<table style="width:100%;font-size:13px;">'+TH_FULL+'<tbody>';
-    rows.forEach(function(x){ h+=_mtRow(x.r,x.m,true); });
+    let h='<table style="width:100%;font-size:14px;font-weight:600;">'+TH_FULL+'<tbody>';
+    vrows.forEach(function(x){ h+=_mtRow(x.r,x.m,true); });
     body.innerHTML=summary+h+'</tbody></table>';
     return;
   }
   // 発注先別
   const grp={};
-  rows.forEach(function(x){
+  vrows.forEach(function(x){
     const key = !x.m ? '⚠ 材料情報なし' : (x.m.supplier || '（発注先未記入）');
     (grp[key]=grp[key]||[]).push(x);
   });
@@ -2436,7 +2454,7 @@ function renderMatCheck(){
     const list=grp[k];
     const color = k==='材料支給' ? '#166534' : (k.indexOf('⚠')===0 ? '#dc2626' : (k==='（発注先未記入）' ? '#d97706' : '#1e3a5f'));
     h+='<div style="font-size:14px;font-weight:700;color:'+color+';background:var(--bg3);border-radius:8px;padding:8px 14px;margin:16px 0 6px;">🏭 '+escapeHtml(k)+'　<span style="font-size:12px;font-weight:600;">'+list.length+'行</span></div>';
-    h+='<table style="width:100%;font-size:13px;">'+TH_SUP+'<tbody>';
+    h+='<table style="width:100%;font-size:14px;font-weight:600;">'+TH_SUP+'<tbody>';
     list.forEach(function(x){ h+=_mtRow(x.r,x.m,false); });
     h+='</tbody></table>';
   });
