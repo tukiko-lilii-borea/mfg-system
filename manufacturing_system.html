@@ -2243,6 +2243,8 @@ function goBackSection(){
   if (fab) fab.style.display = window._navHistory.length ? 'flex' : 'none';
 }
 function showSection(name, _isBack) {
+  window._sbReopen = null; // ページ移動したら内訳への復帰は取消
+  try{ const _sbm=document.getElementById('sales-break-modal'); if(_sbm) _sbm.classList.remove('open'); }catch(e){}
   // 今表示中のセクションを履歴に積む（戻る操作のときは積まない）
   if (!_isBack) {
     const cur = document.querySelector('.section.active');
@@ -4542,6 +4544,16 @@ function _enrichProducts(prodAgg) {
 function _clientRow(e,grand){var pct=grand?(e[1].total/grand*100).toFixed(1):'0.0';return '<tr onclick="showClientBreakdown(\''+e[0].replace(/'/g,"\\'")+'\')" style="cursor:pointer;" title="クリックで内訳を見る"><td>'+e[0]+'</td><td>'+e[1].count+'件</td><td>¥'+fmt(e[1].total)+'</td><td>'+pct+'%</td></tr>';}
 function _matRow(e,grand){var pct=grand?(e[1].total/grand*100).toFixed(1):'0.0';return '<tr><td>'+e[0]+'</td><td>'+e[1].count+'件</td><td>¥'+fmt(e[1].total)+'</td><td>'+pct+'%</td></tr>';}
 function _machineRow(e){return '<tr><td>'+e[0]+'</td><td>'+fmtDuration(e[1].sec)+'</td><td>'+e[1].count+'件</td><td>¥'+fmt(e[1].sales)+'</td></tr>';}
+// 内訳→詳細：詳細を閉じたら内訳一覧に戻れるように、内訳の中身を退避してから開く
+function sbOpenDetail(id){
+  window._sbReopen = {
+    title: document.getElementById('sb-title').textContent,
+    html: document.getElementById('sb-body').innerHTML
+  };
+  closeModal('sales-break-modal');
+  showProdDetail(id);
+}
+
 // 日別売上の内訳
 function showDayBreakdown(dayKey){
   const recs = (window._sbRecs||[]).filter(function(r){
@@ -4554,7 +4566,7 @@ function showDayBreakdown(dayKey){
   const rows = recs.map(function(r){
     const s=_recSales(r), c=_recCost(r), g=s-c;
     tS+=s; tC+=c; tQ+=(r.qty||0);
-    return '<tr onclick="closeModal(\'sales-break-modal\');showProdDetail(\''+r.id+'\')" style="cursor:pointer;" title="クリックで詳細">'
+    return '<tr onclick="sbOpenDetail(\''+r.id+'\')" style="cursor:pointer;" title="クリックで詳細">'
       +'<td style="white-space:nowrap;">'+escapeHtml(r.client||'—')+'</td>'
       +'<td>'+(r.fignum?'<span class="badge badge-blue">'+escapeHtml(r.fignum)+'</span> ':'')+escapeHtml(r.name||'')+'</td>'
       +'<td style="text-align:right;white-space:nowrap;">'+(r.qty||0)+' 個</td>'
@@ -4581,7 +4593,7 @@ function showClientBreakdown(client){
   const rows = recs.map(function(r){
     const s=_recSales(r), c=_recCost(r), g=s-c;
     tS+=s; tC+=c; tQ+=(r.qty||0);
-    return '<tr onclick="closeModal(\'sales-break-modal\');showProdDetail(\''+r.id+'\')" style="cursor:pointer;" title="クリックで詳細">'
+    return '<tr onclick="sbOpenDetail(\''+r.id+'\')" style="cursor:pointer;" title="クリックで詳細">'
       +'<td style="white-space:nowrap;">'+escapeHtml(r.date||'')+'</td>'
       +'<td style="white-space:nowrap;'+(r.due?'':'color:var(--text3);')+'">'+escapeHtml(r.due||'—')+'</td>'
       +'<td>'+(r.fignum?'<span class="badge badge-blue">'+escapeHtml(r.fignum)+'</span> ':'')+escapeHtml(r.name||'')+'</td>'
@@ -4612,7 +4624,7 @@ function showSalesBreakdown(fignum){
   const rows = recs.map(function(r){
     const s=_recSales(r), c=_recCost(r), g=s-c;
     tS+=s; tC+=c; tQ+=(r.qty||0);
-    return '<tr onclick="closeModal(\'sales-break-modal\');showProdDetail(\''+r.id+'\')" style="cursor:pointer;" title="クリックで詳細">'
+    return '<tr onclick="sbOpenDetail(\''+r.id+'\')" style="cursor:pointer;" title="クリックで詳細">'
       +'<td style="white-space:nowrap;">'+escapeHtml(r.date||'')+'</td>'
       +'<td style="white-space:nowrap;'+(r.due?'':'color:var(--text3);')+'">'+escapeHtml(r.due||'—')+'</td>'
       +'<td style="text-align:right;white-space:nowrap;">'+(r.qty||0)+' 個</td>'
@@ -6209,7 +6221,16 @@ function initOneDriveSection() {
 
 // ===== MODAL =====
 function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  // 内訳→詳細の流れなら、詳細を閉じたとき内訳一覧に戻す
+  if (id === 'prod-detail-modal' && window._sbReopen) {
+    const s = window._sbReopen; window._sbReopen = null;
+    document.getElementById('sb-title').textContent = s.title;
+    document.getElementById('sb-body').innerHTML = s.html;
+    openModal('sales-break-modal');
+  }
+}
 document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }));
 
 // ===== ESTIMATE (見積依頼書) =====
