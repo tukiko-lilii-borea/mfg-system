@@ -441,6 +441,9 @@
         <div class="nav-item" onclick="showSection('production')">
           <span class="nav-icon">🔧</span>作業実績
         </div>
+        <div class="nav-item" onclick="showSection('mat-check')">
+          <span class="nav-icon">🪵</span>材料手配
+        </div>
       </div>
       <div class="nav-group">
         <div class="nav-label">分析・集計</div>
@@ -1211,6 +1214,21 @@
     </section>
 
     <!-- ===== SALES ===== -->
+    <!-- ===== 材料手配チェック ===== -->
+    <section class="section" id="sec-mat-check">
+      <div class="page-header">
+        <div><div class="page-title">🪵 材料手配チェック</div><div class="page-subtitle">作業書を作った月ごとに、材料の手配内容を一覧で確認</div></div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="btn btn-ghost btn-xs" onclick="mtShift(-1)">←</button>
+          <span id="mt-label" style="font-size:14px;font-weight:700;min-width:110px;text-align:center;"></span>
+          <button class="btn btn-ghost btn-xs" onclick="mtShift(1)">→</button>
+        </div>
+      </div>
+      <div class="card">
+        <div id="mt-body" class="table-wrap"></div>
+      </div>
+    </section>
+
     <!-- ===== 売上集計（決算） ===== -->
     <section class="section" id="sec-sales-fiscal">
       <div class="page-header">
@@ -2226,6 +2244,7 @@ function showSection(name, _isBack) {
   if (name === 'dashboard') renderDashboard();
   if (name === 'mycompany') loadMyCompany();
   if (name === 'sales-fiscal') renderSalesFiscal();
+  if (name === 'mat-check') renderMatCheck();
   if (name === 'dashboard') renderDueCalendar();
   if (name === 'dashboard') renderMemoBoard();
   if (name === 'products') renderProducts();
@@ -2341,6 +2360,48 @@ function saveMyCompany(){
   loadMyCompany();
   try{ renderDashboard(); }catch(e){}
   showToast('自社情報を保存しました');
+}
+
+// ===== 材料手配チェック =====
+let _mtY=null,_mtM=null;
+function _mtEnsure(){ if(!_mtY||!_mtM||_mtY<2000||_mtM<1||_mtM>12){ const n=new Date(); _mtY=n.getFullYear(); _mtM=n.getMonth()+1; } }
+function mtShift(d){ _mtEnsure(); _mtM+=d; if(_mtM>12){_mtM=1;_mtY++;} if(_mtM<1){_mtM=12;_mtY--;} renderMatCheck(); }
+function renderMatCheck(){
+  const body=document.getElementById('mt-body');
+  if(!body) return;
+  _mtEnsure();
+  document.getElementById('mt-label').textContent=_mtY+'年'+_mtM+'月';
+  const ym=_mtY+'-'+String(_mtM).padStart(2,'0');
+  const recs=(DB.productions||[]).filter(function(r){ return (r.date||'').startsWith(ym); }).sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+  const rows=[];
+  recs.forEach(function(r){
+    const mats=(r.materials&&r.materials.length)?r.materials:[null];
+    mats.forEach(function(m){
+      rows.push({r:r,m:m});
+    });
+  });
+  if(!rows.length){ body.innerHTML='<div class="empty-state" style="padding:30px;text-align:center;color:var(--text3);">この月の実績はありません</div>'; return; }
+  let h='<table style="width:100%;font-size:13px;"><thead><tr><th>発注日</th><th>納期</th><th>受注先</th><th>図番 / 品名</th><th>材料発注先</th><th>素材</th><th>材料寸法</th><th style="text-align:right;">個数</th></tr></thead><tbody>';
+  let cnt=0, shikyu=0, nomat=0;
+  rows.forEach(function(x){
+    const r=x.r, m=x.m;
+    const isShikyu = m && m.supplier==='材料支給';
+    if(m){ cnt++; if(isShikyu) shikyu++; } else { nomat++; }
+    const supCell = !m ? '<span style="color:#dc2626;font-weight:700;">材料なし</span>' : (isShikyu ? '<span class="badge badge-green">材料支給</span>' : escapeHtml(m.supplier||'<span style="color:#d97706;">未記入</span>'));
+    h+='<tr onclick="showProdDetail(\''+r.id+'\')" style="cursor:pointer;'+(!m?'background:#fef2f2;':'')+'">' 
+      +'<td style="white-space:nowrap;">'+escapeHtml((r.date||'').slice(5).replace('-','/'))+'</td>'
+      +'<td style="white-space:nowrap;'+(r.due?'':'color:var(--text3);')+'">'+escapeHtml(r.due||'—')+'</td>'
+      +'<td style="white-space:nowrap;">'+escapeHtml(r.client||'—')+'</td>'
+      +'<td>'+(r.fignum?'<span class="badge badge-blue">'+escapeHtml(r.fignum)+'</span> ':'')+escapeHtml(r.name||'')+'</td>'
+      +'<td style="white-space:nowrap;">'+supCell+'</td>'
+      +'<td>'+escapeHtml(m&&m.name||'—')+'</td>'
+      +'<td style="white-space:nowrap;">'+escapeHtml(m&&m.size||'—')+'</td>'
+      +'<td style="text-align:right;white-space:nowrap;">'+(m&&m.qty?m.qty+' ヶ':'—')+'</td>'
+      +'</tr>';
+  });
+  h+='</tbody></table>';
+  h='<div style="font-size:12px;color:var(--text2);margin-bottom:10px;">材料 '+cnt+'行（うち材料支給 '+shikyu+'）'+(nomat?'　<span style="color:#dc2626;font-weight:700;">⚠ 材料情報なし '+nomat+'件</span>':'')+'　※行クリックで詳細</div>'+h;
+  body.innerHTML=h;
 }
 
 // ===== 売上集計（決算期） =====
