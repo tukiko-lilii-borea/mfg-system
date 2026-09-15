@@ -4025,6 +4025,16 @@ function initProductionForm() {
   updateDataLists();
 }
 
+// 図番用：全角の英数字と全角ハイフンだけ半角に直す（漢字・かなはそのまま）
+function toHalfAlnum(s){
+  if(!s) return s;
+  return String(s).replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/－/g,'-');
+}
+['pf-fignum','rf-fignum','bw-fignum'].forEach(function(id){
+  var el=document.getElementById(id);
+  if(el) el.addEventListener('blur', function(){ el.value = toHalfAlnum(el.value); });
+});
+
 // 全角数字・コロン・ハイフンを半角に変換
 function toHalfWidthTime(s) {
   if (!s) return s;
