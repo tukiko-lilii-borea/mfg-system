@@ -1217,13 +1217,10 @@
     <!-- ===== 材料手配チェック ===== -->
     <section class="section" id="sec-mat-check">
       <div class="page-header">
-        <div><div class="page-title">🪵 材料手配チェック</div><div class="page-subtitle">作業書を作った月ごとに、材料の手配内容を一覧で確認</div></div>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <button class="btn btn-ghost btn-xs" onclick="mtShift(-1)">←</button>
-          <span id="mt-label" style="font-size:14px;font-weight:700;min-width:110px;text-align:center;"></span>
-          <button class="btn btn-ghost btn-xs" onclick="mtShift(1)">→</button>
-        </div>
+        <div><div class="page-title">🪵 材料手配チェック</div><div class="page-subtitle">納期の月ごとに、材料の手配内容を納期順で確認</div></div>
+        <select id="mt-year" onchange="mtSetYear(this.value)" style="width:110px;font-weight:700;"></select>
       </div>
+      <div class="tabs" id="mt-month-tabs" style="margin-bottom:8px;"></div>
       <div class="tabs" style="margin-bottom:12px;">
         <div class="tab active" id="mt-tab-date" onclick="mtView('date')">🚚 納期順</div>
         <div class="tab" id="mt-tab-sup" onclick="mtView('sup')">🏭 発注先別</div>
@@ -2368,8 +2365,9 @@ function saveMyCompany(){
 
 // ===== 材料手配チェック =====
 let _mtY=null,_mtM=null,_mtV='date';
-function _mtEnsure(){ if(!_mtY||!_mtM||_mtY<2000||_mtM<1||_mtM>12){ const n=new Date(); _mtY=n.getFullYear(); _mtM=n.getMonth()+1; } }
-function mtShift(d){ _mtEnsure(); _mtM+=d; if(_mtM>12){_mtM=1;_mtY++;} if(_mtM<1){_mtM=12;_mtY--;} renderMatCheck(); }
+function _mtEnsure(){ if(!_mtY||_mtY<2000){ _mtY=(new Date()).getFullYear(); } if(_mtM==null){ _mtM=(new Date()).getMonth()+1; } }
+function mtSetYear(v){ _mtY=parseInt(v,10); renderMatCheck(); }
+function mtSetMonth(m){ _mtM=m; renderMatCheck(); }
 function mtView(v){ _mtV=v; document.getElementById('mt-tab-date').classList.toggle('active',v==='date'); document.getElementById('mt-tab-sup').classList.toggle('active',v==='sup'); renderMatCheck(); }
 function _mtRow(r,m,showSup){
   const isShikyu = m && m.supplier==='材料支給';
@@ -2389,18 +2387,28 @@ function renderMatCheck(){
   const body=document.getElementById('mt-body');
   if(!body) return;
   _mtEnsure();
-  document.getElementById('mt-label').textContent=_mtY+'年'+_mtM+'月';
-  const ym=_mtY+'-'+String(_mtM).padStart(2,'0');
-  const recs=(DB.productions||[]).filter(function(r){ return (r.date||'').startsWith(ym); }).sort(function(a,b){
+  // 年の選択肢（納期に存在する年＋今年）
+  const yset=new Set([(new Date()).getFullYear()]);
+  (DB.productions||[]).forEach(function(r){ const dt=_parseDue(r.due); if(dt) yset.add(dt.getFullYear()); });
+  document.getElementById('mt-year').innerHTML=Array.from(yset).sort().map(function(y){ return '<option value="'+y+'"'+(y===_mtY?' selected':'')+'>'+y+'年</option>'; }).join('');
+  // 月タブ（1〜12月＋納期なし）
+  var mtabs='';
+  for(var mm=1;mm<=12;mm++){ mtabs+='<div class="tab'+(_mtM===mm?' active':'')+'" onclick="mtSetMonth('+mm+')">'+mm+'月</div>'; }
+  mtabs+='<div class="tab'+(_mtM===0?' active':'')+'" onclick="mtSetMonth(0)">納期なし</div>';
+  document.getElementById('mt-month-tabs').innerHTML=mtabs;
+  // 納期の年月で絞り込み → 納期の早い順
+  const recs=(DB.productions||[]).filter(function(r){
+    const dt=_parseDue(r.due);
+    if(_mtM===0) return !dt;
+    return dt && dt.getFullYear()===_mtY && dt.getMonth()+1===_mtM;
+  }).sort(function(a,b){
     const da=_parseDue(a.due), db_=_parseDue(b.due);
     if(da&&db_){ if(da-db_!==0) return da-db_; return (a.date||'').localeCompare(b.date||''); }
-    if(da) return -1;
-    if(db_) return 1;
     return (a.date||'').localeCompare(b.date||'');
   });
   const rows=[];
   recs.forEach(function(r){ ((r.materials&&r.materials.length)?r.materials:[null]).forEach(function(m){ rows.push({r:r,m:m}); }); });
-  if(!rows.length){ body.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">この月の実績はありません</div>'; return; }
+  if(!rows.length){ body.innerHTML='<div style="padding:30px;text-align:center;color:var(--text3);">この月の納期の材料はありません</div>'; return; }
   let cnt=0, shikyu=0, nomat=0;
   rows.forEach(function(x){ if(x.m){ cnt++; if(x.m.supplier==='材料支給') shikyu++; } else nomat++; });
   const summary='<div style="font-size:12px;color:var(--text2);margin-bottom:10px;">材料 '+cnt+'行（うち材料支給 '+shikyu+'）'+(nomat?'　<span style="color:#dc2626;font-weight:700;">⚠ 材料情報なし '+nomat+'件</span>':'')+'　※行クリックで詳細</div>';
