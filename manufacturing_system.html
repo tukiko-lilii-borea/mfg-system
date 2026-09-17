@@ -1251,6 +1251,7 @@
         <div><div class="page-title">💼 売上集計（決算期）</div><div class="page-subtitle" id="sf-sub"></div></div>
         <div style="display:flex;gap:8px;align-items:center;">
           <select id="sf-year" onchange="sfSetYear(this.value)" style="width:190px;"></select>
+          <button class="btn btn-ghost btn-sm" onclick="printSalesFiscalView()">🖨 印刷</button>
           <button class="btn btn-ghost btn-sm" onclick="setupFiscal()">⚙ 決算月の設定</button>
         </div>
       </div>
@@ -1675,7 +1676,10 @@
   <div class="modal" style="max-width:760px;">
     <div class="modal-header">
       <div class="modal-title" id="sb-title">内訳</div>
-      <button class="modal-close" onclick="closeModal('sales-break-modal')">✕</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-ghost btn-sm" onclick="printSalesBreak()">🖨 印刷</button>
+        <button class="modal-close" onclick="closeModal('sales-break-modal')">✕</button>
+      </div>
     </div>
     <div id="sb-body" class="modal-body"></div>
   </div>
@@ -2597,6 +2601,39 @@ function renderSalesFiscal(){
     + table;
 
   const inp=body.querySelector('input'); if(inp && _sfQ){ inp.focus(); const v=inp.value; inp.value=''; inp.value=v; }
+}
+
+// ===== 売上の印刷（A4） =====
+function _printA4(title, sub, html){
+  const w=window.open('','_blank');
+  if(!w){ showToast('ポップアップがブロックされました','error'); return; }
+  const n=new Date();
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+title+'</title><style>'
+    +"body{font-family:'Yu Gothic','Meiryo',sans-serif;padding:22px;}"
+    +'h1{font-size:16px;border-bottom:2.5px solid #333;padding-bottom:6px;margin:0 0 4px;}'
+    +'.sub{font-size:11px;color:#555;margin-bottom:12px;}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px;}'
+    +'th,td{border:1px solid #999;padding:5px 8px;text-align:left;}'
+    +'th{background:#eee;font-size:10px;}'
+    +'.badge{border:1px solid #94a3b8;border-radius:4px;padding:0 4px;font-size:9px;margin-right:3px;}'
+    +'tfoot tr{font-weight:700;background:#f8f8f8;}'
+    +'@page{size:A4;margin:12mm;}'
+    +'</style></head><body><h1>'+title+'</h1><div class="sub">'+sub+'　／　発行日：'+n.getFullYear()+'/'+(n.getMonth()+1)+'/'+n.getDate()+'</div>'+html+'<scr'+'ipt>window.print();</scr'+'ipt></body></html>');
+  w.document.close();
+}
+function printSalesBreak(){
+  const t=document.getElementById('sb-title').textContent;
+  const wrap=document.querySelector('#sb-body .table-wrap');
+  if(!wrap){ showToast('印刷する内容がありません','error'); return; }
+  _printA4(t, '売上内訳', wrap.outerHTML);
+}
+function printSalesFiscalView(){
+  const wrap=document.querySelector('#sf-body .card .table-wrap');
+  if(!wrap){ showToast('印刷する表がありません','error'); return; }
+  const ct=document.querySelector('#sf-body .card .card-title');
+  const title='売上集計（決算期）　'+(ct?ct.textContent.trim():'');
+  const sub=document.getElementById('sf-sub').textContent;
+  _printA4(title, sub, wrap.outerHTML);
 }
 
 // ===== 決算期（自社設定） =====
