@@ -4036,6 +4036,20 @@ function filterProduction(q) {
     : '<tr><td colspan="2" style="color:var(--text2);font-size:13px;">データなし</td></tr>';
 }
 
+// 詳細モーダルからの実績削除（カレンダー・材料手配・内訳のどこから開いても消せる）
+function detailDeleteProd(id){
+  const p = DB.productions.find(x=>x.id===id);
+  if(!p) return;
+  if(!confirm('この実績を削除します。\n'+(p.fignum?p.fignum+'　':'')+(p.name||'')+'（'+(p.qty||0)+'個、納期 '+(p.due||'未設定')+'）\n\n売上・カレンダー・材料手配からも消えます。よろしいですか？')) return;
+  DB.productions = DB.productions.filter(x=>x.id!==id);
+  try{ recordHistory('delete','production', (p.fignum||p.name||'実績')+' を削除（'+(p.qty||0)+'個）', null, null); }catch(e){}
+  window._sbReopen = null; // 内訳一覧への復帰は取消（削除後の古い一覧が出んように）
+  save();
+  closeModal('prod-detail-modal');
+  refreshAllViews();
+  showToast('実績を削除しました');
+}
+
 function showProdDetail(id) {
   const p = DB.productions.find(x=>x.id===id);
   if (!p) return;
@@ -4114,7 +4128,10 @@ function showProdDetail(id) {
       <div class="process-steps">${p.steps.map((s,i)=>`<div class="step-badge">工程${i+1}: <span class="step-time">${s}</span></div>`).join('')}</div>
     `:''}
     <div style="display:flex;justify-content:space-between;margin-top:18px;">
-      <button class="btn btn-ghost btn-sm" onclick="closeModal('prod-detail-modal');editProduction('${p.id}')">✏ 編集</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('prod-detail-modal');editProduction('${p.id}')">✏ 編集</button>
+        <button class="btn btn-danger btn-sm" onclick="detailDeleteProd('${p.id}')">🗑 削除</button>
+      </div>
       <button class="btn btn-primary btn-sm" onclick="reprintWorksheet('${p.id}')">🖨 作業書を印刷</button>
     </div>
   `;
