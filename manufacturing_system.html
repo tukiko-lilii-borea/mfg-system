@@ -3093,12 +3093,12 @@ function submitWorksheet(){
   // 数量別単価テーブルがあれば、納品数に応じた単価を自動適用（例：25個→10〜99の段）
   const _lp = lookupPrice(p.priceTable, prodQty, p.price||0, p.matPrice||0);
   const pw = Object.assign({}, p, { price: _lp.price });
-  saveWorksheetRecord(pw, qtys, prodQty, due);
+  const _newRec = saveWorksheetRecord(pw, qtys, prodQty, due);
   closeModal('worksheet-modal');
   closeModal('product-detail-modal');
   refreshAllViews();
   showToast('作業書を作成し、作業実績にも登録しました');
-  printWorksheet(pw, qtys, prodQty, due);
+  printWorksheet(pw, qtys, prodQty, due, _newRec && _newRec.no);
 }
 
 // ===== 納期カレンダー（ダッシュボード） =====
@@ -3302,7 +3302,7 @@ function saveWorksheetRecord(p, qtys, prodQty, due){
   return prodRec;
 }
 
-function printWorksheet(p, qtys, prodQty, due){
+function printWorksheet(p, qtys, prodQty, due, mgNo){
   const rec = _latestProduction(p.fignum);
   const steps = (rec && Array.isArray(rec.steps)) ? rec.steps : [];
 
@@ -3476,7 +3476,7 @@ function printWorksheet(p, qtys, prodQty, due){
     .b-claim { background:#fef2f2; border-color:#dc2626; color:#991b1b; }
     .claimbox { border:1.5px solid #dc2626; padding:11px; font-size:13px; font-weight:700; line-height:1.8; background:#fef2f2; margin-top:9px; color:#991b1b; }
   </style></head><body>
-
+    ${mgNo?`<div style="text-align:right;font-size:9.5px;color:#555;margin:0 0 -6px;">管理No：${escapeHtml(String(mgNo))}</div>`:''}
     <h1>作 業 書</h1>
 
     <table class="head">
@@ -4185,7 +4185,7 @@ function reprintWorksheet(recordId){
     outsource: (r.outsourceInfo||[]).map(o=>({ name:o.name||'', note:o.note||'', price:o.price||0, priceUnit:o.priceUnit||'per' }))
   };
   const qtys = mats.length ? mats.map(m=>m.qty||0) : [r.qty||0];
-  printWorksheet(pseudo, qtys, r.qty||0, r.due||'');
+  printWorksheet(pseudo, qtys, r.qty||0, r.due||'', r.no);
 }
 
 function deleteProd(id) {
@@ -4979,11 +4979,11 @@ function submitBlankWorksheet(){
   const hasMat = (matSup||matName||matPrice||matQty);
   const qtys = hasMat ? [matQty] : [0];
   const due = document.getElementById('bw-due').value.trim();
-  saveWorksheetRecord(pseudo, qtys, qty, due);
+  const _newRec = saveWorksheetRecord(pseudo, qtys, qty, due);
   closeModal('blank-ws-modal');
   refreshAllViews();
   showToast('作業書を作成し、作業実績にも登録しました');
-  printWorksheet(pseudo, qtys, qty, due);
+  printWorksheet(pseudo, qtys, qty, due, _newRec && _newRec.no);
 }
 
 // ===== 会社統合 =====
