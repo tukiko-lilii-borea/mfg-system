@@ -2129,6 +2129,7 @@ function _assignProdNos(){
 }
 function save() {
   try{ _assignProdNos(); }catch(e){}
+  window._dirtySinceOd = true; // OneDrive未反映の変更あり
   localStorage.setItem('mfg_db', JSON.stringify(DB));
 }
 function load() {
@@ -6168,11 +6169,11 @@ async function odGetToken() {
 }
 
 // ===== シンプルな OneDrive 保存 =====
-async function odSave() {
+async function odSave(auto) {
   // 1) ログイン状態チェック
   if (!msalInstance) { try { odInitMsal(); } catch(e){} }
   if (!msalInstance || msalInstance.getAllAccounts().length === 0) {
-    showToast('ログインしてください', 'error');
+    if (!auto) showToast('ログインしてください', 'error');
     return false;
   }
   if (!odAccount) odAccount = msalInstance.getAllAccounts()[0];
@@ -6186,7 +6187,7 @@ async function odSave() {
     });
     token = resp.accessToken;
   } catch (e) {
-    showToast('ログインが切れています。OneDrive連携ページからログインしてください', 'error');
+    if (!auto) showToast('ログインが切れています。OneDrive連携ページからログインしてください', 'error');
     return false;
   }
 
@@ -6203,11 +6204,12 @@ async function odSave() {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     // 4) 成功 → 最終保存時刻を更新
     localStorage.setItem('mfg_last_save', String(Date.now()));
+    window._dirtySinceOd = false;
     if (typeof window._updateLastSaveText === 'function') window._updateLastSaveText();
-    showToast('✅ OneDriveに保存しました', 'success');
+    showToast(auto ? '☁ 自動保存しました' : '✅ OneDriveに保存しました', 'success');
     return true;
   } catch (e) {
-    showToast('❌ 保存失敗', 'error');
+    if (!auto) showToast('❌ 保存失敗', 'error');
     return false;
   }
 }
@@ -6282,6 +6284,36 @@ function odUndoLoad(){
     showToast('↩ 直前の状態に戻しました');
   }catch(e){ showToast('復元に失敗しました','error'); }
 }
+
+// ===== OneDrive自動保存（三段構え） =====
+// ①3分おき ②タブを離れた瞬間 ③未保存で閉じようとしたら警告
+function _odReady(){
+  try{
+    if(!msalInstance) odInitMsal();
+    return !!(msalInstance && msalInstance.getAllAccounts().length);
+  }catch(e){ return false; }
+}
+let _odAutoBusy = false;
+async function odAutoSave(){
+  if(!window._dirtySinceOd) return; // 変更なしなら何もしない
+  if(_odAutoBusy) return;           // 二重送信防止
+  if(!_odReady()) return;           // 未ログインなら静かにスキップ
+  _odAutoBusy = true;
+  try{ await odSave(true); }catch(e){}
+  _odAutoBusy = false;
+}
+setInterval(odAutoSave, 3*60*1000);
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState === 'hidden') odAutoSave();
+});
+window.addEventListener('beforeunload', function(e){
+  if(window._dirtySinceOd && _odReady()){
+    odAutoSave(); // ダメ元で送信も試す
+    e.preventDefault();
+    e.returnValue = 'OneDriveに保存していない変更があります。';
+    return e.returnValue;
+  }
+});
 
 function initOneDriveSection() {
   const cfg = odGetConfig();
