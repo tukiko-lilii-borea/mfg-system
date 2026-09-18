@@ -2836,7 +2836,7 @@ function filterProducts(q) {
       <td style="white-space:nowrap;min-width:160px;">${p.client||'—'}</td>
       <td class="hide-mobile" style="white-space:nowrap;min-width:100px;text-align:left;">${p.matSize||'—'}</td>
       <td style="white-space:nowrap;text-align:right;">¥${fmt(p.price)}</td>
-      <td class="hide-mobile" style="white-space:nowrap;text-align:center;">${p.claimUrl?`<span class="badge badge-red">あり</span>`:'—'}</td>
+      <td class="hide-mobile" style="white-space:nowrap;text-align:center;">${((Array.isArray(p.claims)&&p.claims.length)||p.claimUrl)?`<span class="badge badge-red">あり</span>`:'—'}</td>
       <td style="white-space:nowrap;"><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();showProductDetail('${p.id}')">詳細</button> <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();editProduct('${p.id}')">編集</button></td>
     </tr>`;
   }).join('') : `<tr><td colspan="${priceListMode?8:7}"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">製品なし</div></div></td></tr>`;
@@ -3660,15 +3660,27 @@ function showProductDetail(id) {
     ${outsourceCards ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;">${outsourceCards}</div>` : ''}
 
 
-    ${(p.drawingUrl || p.claimUrl) ? `
-      <div style="margin-top:18px;">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          ${p.drawingUrl ? `<a href="${p.drawingUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 2px 6px rgba(37,99,235,0.3);">📄 図面を開く</a>` : ''}
-          ${p.claimUrl ? `<a href="${p.claimUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;background:#dc2626;color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 2px 6px rgba(220,38,38,0.3);">⚠️ クレーム資料を開く</a>` : ''}
-        </div>
-        <div style="font-size:11px;color:#64748b;margin-top:6px;">Excel・PDF・Word等のOneDriveリンクに対応</div>
-      </div>
-    ` : ''}
+    ${(()=>{
+      const dws = (Array.isArray(p.drawings)&&p.drawings.length ? p.drawings : (p.drawingUrl?[{url:p.drawingUrl,note:''}]:[])).filter(x=>x&&x.url);
+      const cls = (Array.isArray(p.claims)&&p.claims.length ? p.claims : ((p.claimUrl)?[{url:p.claimUrl,note:'',date:''}]:[])).filter(x=>x&&(x.url||x.note));
+      const clUrls = cls.filter(x=>x.url);
+      const clNotes = (Array.isArray(p.claims)&&p.claims.length) ? cls.filter(x=>x.note) : [];
+      if(!dws.length && !cls.length) return '';
+      let h = '<div style="margin-top:18px;">';
+      if(dws.length || clUrls.length){
+        h += '<div style="display:flex;gap:10px;flex-wrap:wrap;">';
+        dws.forEach((x,idx)=>{ h += `<a href="${x.url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;background:#2563eb;color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 2px 6px rgba(37,99,235,0.3);">📄 ${escapeHtml(x.note || (dws.length>1?('図面'+(idx+1)):'図面を開く'))}</a>`; });
+        clUrls.forEach((x,idx)=>{ h += `<a href="${x.url}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;background:#dc2626;color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 2px 6px rgba(220,38,38,0.3);">⚠️ クレーム資料${clUrls.length>1?(idx+1):''}${x.date?'（'+String(x.date).replace(/-/g,'/')+'）':''}</a>`; });
+        h += '</div><div style="font-size:11px;color:#64748b;margin-top:6px;">Excel・PDF・Word等のOneDriveリンクに対応</div>';
+      }
+      if(clNotes.length){
+        h += '<div style="margin-top:12px;padding:10px 14px;border-left:4px solid #dc2626;background:#fef2f2;border-radius:8px;">'
+          + '<div style="font-size:11px;font-weight:800;color:#dc2626;margin-bottom:4px;">⚠ クレーム履歴</div>'
+          + clNotes.map(x=>'<div style="font-size:13px;font-weight:600;color:#7f1d1d;margin:3px 0;">'+(x.date?'['+String(x.date).replace(/-/g,'/')+'] ':'')+escapeHtml(x.note)+'</div>').join('')
+          + '</div>';
+      }
+      return h + '</div>';
+    })()}
 
     ${p.priceTable&&p.priceTable.length ? `
       <div style="margin-top:18px;">
