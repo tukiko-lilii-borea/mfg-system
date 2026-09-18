@@ -1223,6 +1223,7 @@
       <div class="tabs" id="mt-month-tabs" style="margin-bottom:8px;"></div>
       <div class="tabs" style="margin-bottom:12px;">
         <div class="tab active" id="mt-tab-date" onclick="mtView('date')">🚚 納期順</div>
+        <div class="tab" id="mt-tab-new" onclick="mtView('new')">🆕 最新順</div>
         <div class="tab" id="mt-tab-sup" onclick="mtView('sup')">🏭 発注先別</div>
       </div>
       <div style="margin-bottom:10px;">
@@ -2421,7 +2422,7 @@ function mtSetMonth(m){ _mtM=m; renderMatCheck(); }
 function mtToggleSearch(){ const p=document.getElementById('mt-search-panel'); p.style.display = (p.style.display==='none') ? 'block' : 'none'; }
 function mtSetF(k,v){ _mtF[k]=(v||'').toLowerCase().trim(); renderMatCheck(); }
 function mtClearSearch(){ _mtF={}; document.querySelectorAll('#mt-search-panel input').forEach(function(i){ i.value=''; }); renderMatCheck(); }
-function mtView(v){ _mtV=v; document.getElementById('mt-tab-date').classList.toggle('active',v==='date'); document.getElementById('mt-tab-sup').classList.toggle('active',v==='sup'); renderMatCheck(); }
+function mtView(v){ _mtV=v; document.getElementById('mt-tab-date').classList.toggle('active',v==='date'); document.getElementById('mt-tab-new').classList.toggle('active',v==='new'); document.getElementById('mt-tab-sup').classList.toggle('active',v==='sup'); renderMatCheck(); }
 function _mtRow(r,m,showSup){
   const isShikyu = m && m.supplier==='材料支給';
   const supCell = !m ? '<span style="color:#dc2626;font-weight:700;">材料なし</span>' : (isShikyu ? '<span class="badge badge-green">材料支給</span>' : (m.supplier?escapeHtml(m.supplier):'<span style="color:#d97706;">未記入</span>'));
@@ -2487,7 +2488,11 @@ function renderMatCheck(){
   const summary='<div style="font-size:12px;color:var(--text2);margin-bottom:10px;">材料 '+cnt+'行（うち材料支給 '+shikyu+'）'+(nomat?'　<span style="color:#dc2626;font-weight:700;">⚠ 材料情報なし '+nomat+'件</span>':'')+'　※行クリックで詳細</div>';
   const TH_FULL='<thead><tr><th>発注日</th><th>納期</th><th>受注先</th><th>図番 / 品名</th><th>材料発注先</th><th>素材</th><th>材料寸法</th><th style="text-align:right;">材料単価</th><th style="text-align:right;">個数</th></tr></thead>';
   const TH_SUP='<thead><tr><th>発注日</th><th>納期</th><th>受注先</th><th>図番 / 品名</th><th>素材</th><th>材料寸法</th><th style="text-align:right;">材料単価</th><th style="text-align:right;">個数</th></tr></thead>';
-  if(_mtV==='date'){
+  if(_mtV==='new'){
+    // 最新順：登録・編集が新しい順（同時刻なら発注日の新しい順）
+    vrows = vrows.slice().sort(function(a,b){ return ((b.r.updatedAt||0)-(a.r.updatedAt||0)) || (b.r.date||'').localeCompare(a.r.date||''); });
+  }
+  if(_mtV==='date' || _mtV==='new'){
     let h='<table style="width:100%;font-size:14px;font-weight:600;">'+TH_FULL+'<tbody>';
     vrows.forEach(function(x){ h+=_mtRow(x.r,x.m,true); });
     body.innerHTML=summary+h+'</tbody></table>';
