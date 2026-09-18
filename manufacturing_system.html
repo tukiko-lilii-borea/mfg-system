@@ -565,14 +565,14 @@
       <div class="stats-grid" id="stats-grid"></div>
 
       <div class="card" style="margin-bottom:26px;">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-          <span>📅 納期カレンダー</span>
-          <span style="display:flex;gap:6px;align-items:center;">
-            <button class="btn btn-ghost btn-xs" onclick="calShift(-1)">←</button>
-            <span id="due-cal-label" style="font-size:14px;font-weight:700;min-width:110px;text-align:center;"></span>
-            <button class="btn btn-ghost btn-xs" onclick="calShift(1)">→</button>
-            <button class="btn btn-ghost btn-xs" onclick="printDueList()">🖨 印刷</button>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <span>📅 納期カレンダー</span>
+            <button class="btn btn-ghost btn-sm" onclick="calShift(-1)" style="font-size:17px;padding:4px 14px;">←</button>
+            <span id="due-cal-label" style="font-size:21px;font-weight:800;min-width:160px;text-align:center;color:var(--accent);"></span>
+            <button class="btn btn-ghost btn-sm" onclick="calShift(1)" style="font-size:17px;padding:4px 14px;">→</button>
           </span>
+          <button class="btn btn-ghost btn-xs" onclick="printDueList()">🖨 印刷</button>
         </div>
         <div id="due-cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;"></div>
         <div id="due-cal-day-list" style="margin-top:12px;"></div>
