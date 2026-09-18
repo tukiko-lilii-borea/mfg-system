@@ -4244,6 +4244,9 @@ function editProduction(id) {
   showSection('production-form');
   // initProductionForm が today を入れた直後に上書き
   setTimeout(function(){
+    // 重要：initProductionForm→clearProductionFormが編集IDをnullに消すため、ここで再セット
+    // （これが消えてたせいで「編集したのに新規で増える」二重バグが起きてた）
+    window._editingProdId = id;
     document.getElementById('rf-date').value = p.date || '';
     document.getElementById('rf-machine').value = p.machine || '';
     document.getElementById('rf-fignum').value = p.fignum || '';
