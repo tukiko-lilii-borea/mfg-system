@@ -1068,7 +1068,7 @@
           <table>
             <thead>
               <tr>
-                <th>日付</th><th class="hide-mobile">納期</th><th>機械</th><th>図番</th><th>品名</th>
+                <th>No</th><th>日付</th><th class="hide-mobile">納期</th><th>機械</th><th>図番</th><th>品名</th>
                 <th class="hide-mobile">受注先</th>
                 <th>数量</th>
                 <th class="hide-mobile">合計時間</th>
@@ -2110,7 +2110,24 @@ const ORDER_DEFAULT_TEMPLATES = [
   '納期のご回答をお願い致します。',
 ];
 
+function _prodNoFor(dateStr, used){
+  // KRB + 西暦下2桁+月日 + ランダム3桁（既存と照合して重複なら引き直す＝絶対かぶらない）
+  const d = (dateStr && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) ? dateStr : new Date().toISOString().slice(0,10);
+  const ymd = d.slice(2,4) + d.slice(5,7) + d.slice(8,10);
+  let no;
+  do { no = 'KRB' + ymd + '-' + String(Math.floor(Math.random()*900)+100); } while (used.has(no));
+  used.add(no);
+  return no;
+}
+function _assignProdNos(){
+  if(!DB || !DB.productions) return;
+  const used = new Set(DB.productions.map(function(r){return r.no;}).filter(function(v){return typeof v==='string';}));
+  DB.productions.forEach(function(r){
+    if(!r.no || typeof r.no==='number'){ r.no = _prodNoFor(r.date, used); }
+  });
+}
 function save() {
+  try{ _assignProdNos(); }catch(e){}
   localStorage.setItem('mfg_db', JSON.stringify(DB));
 }
 function load() {
@@ -2124,6 +2141,8 @@ function load() {
     if (!DB.memos) DB.memos = [];
     if (!DB.company) DB.company = {};
     if (!DB.myCompanies) DB.myCompanies = [];
+    if (!DB.prodSeq) DB.prodSeq = 0;
+    try{ _assignProdNos(); }catch(e){}
     // 旧receipts（受注データ）を実績へ一回だけ移行（データ一本化）
     if (DB.receipts.length) {
       DB.receipts.forEach(r=>{
@@ -3974,7 +3993,7 @@ function filterProduction(q) {
   q = (q||'').toLowerCase();
   const machine = document.getElementById('prod-machine-filter').value;
   const prods = DB.productions.filter(p=>p.date.startsWith(prodCurrentYear))
-    .filter(p=>(!q || p.machine.toLowerCase().includes(q) || p.fignum.toLowerCase().includes(q) || (p.name||'').toLowerCase().includes(q) || (p.client||'').toLowerCase().includes(q)) && (!machine || p.machine===machine))
+    .filter(p=>(!q || p.machine.toLowerCase().includes(q) || p.fignum.toLowerCase().includes(q) || (p.name||'').toLowerCase().includes(q) || (p.client||'').toLowerCase().includes(q) || String(p.no||'').toLowerCase().includes(q)) && (!machine || p.machine===machine))
     .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0) || b.date.localeCompare(a.date));
 
   // サマリー（表示中の年・絞り込み後）
@@ -3988,6 +4007,7 @@ function filterProduction(q) {
 
   document.getElementById('prod-tbody').innerHTML = prods.length ? prods.map(p=>`
     <tr onclick="showProdDetail('${p.id}')" style="cursor:pointer;">
+      <td style="white-space:nowrap;font-weight:700;color:#6b21a8;font-size:12px;">${p.no||''}</td>
       <td style="white-space:nowrap;">${fmtDate(p.date)}</td>
       <td class="hide-mobile" style="white-space:nowrap;">${escapeHtml(p.due||'—')}</td>
       <td>${p.machine||'—'}</td>
@@ -4068,6 +4088,7 @@ function showProdDetail(id) {
   const tdR = tdS+'text-align:right;white-space:nowrap;';
 
   document.getElementById('prod-detail-body').innerHTML = `
+    <div style="display:inline-block;background:#f3e8ff;color:#6b21a8;font-weight:700;font-size:13px;border:1.5px solid #9333ea;border-radius:999px;padding:3px 14px;margin-bottom:10px;">管理No ${p.no||''}</div>`+`
     ${secLabel('■ 基本情報','#1e40af')}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       ${card(blue,'日付', fmtDate(p.date))}
