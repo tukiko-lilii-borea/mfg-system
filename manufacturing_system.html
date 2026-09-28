@@ -900,6 +900,7 @@
                 <th style="min-width:160px;white-space:nowrap;">受注先</th>
                 <th class="hide-mobile" style="min-width:100px;white-space:nowrap;">寸法</th>
                 <th style="min-width:80px;white-space:nowrap;text-align:right;">単価</th>
+                <th class="hide-mobile" style="min-width:110px;white-space:nowrap;">工程時間(前回)</th>
                 <th class="hide-mobile" style="min-width:70px;white-space:nowrap;text-align:center;">クレーム</th>
                 <th style="min-width:130px;white-space:nowrap;">操作</th>
               </tr>
@@ -2836,6 +2837,7 @@ function filterProducts(q) {
       <td style="white-space:nowrap;min-width:160px;">${p.client||'—'}</td>
       <td class="hide-mobile" style="white-space:nowrap;min-width:100px;text-align:left;">${p.matSize||'—'}</td>
       <td style="white-space:nowrap;text-align:right;">¥${fmt(p.price)}</td>
+      <td class="hide-mobile" style="white-space:nowrap;font-size:12px;color:var(--text2);">${(()=>{ const lr=_latestProduction(p.fignum); return (lr&&Array.isArray(lr.steps)&&lr.steps.length)?lr.steps.join(' / '):'—'; })()}</td>
       <td class="hide-mobile" style="white-space:nowrap;text-align:center;">${((Array.isArray(p.claims)&&p.claims.length)||p.claimUrl)?`<span class="badge badge-red">あり</span>`:'—'}</td>
       <td style="white-space:nowrap;"><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();showProductDetail('${p.id}')">詳細</button> <button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();editProduct('${p.id}')">編集</button></td>
     </tr>`;
@@ -3682,6 +3684,17 @@ function showProductDetail(id) {
       return h + '</div>';
     })()}
 
+    ${(()=>{
+      const lr = _latestProduction(p.fignum);
+      if(!lr || !Array.isArray(lr.steps) || !lr.steps.length) return '';
+      let dl = '';
+      if(lr.date){ const dp=String(lr.date).split('-'); dl = dp.length===3 ? (parseInt(dp[0],10)+'年'+parseInt(dp[1],10)+'月'+parseInt(dp[2],10)+'日') : lr.date; }
+      return `<div style="margin-top:18px;">
+        <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:8px;letter-spacing:0.5px;">⏱ 工程時間（最新 ${dl}）</div>
+        <div class="process-steps">${lr.steps.map((s,i)=>`<div class="step-badge">工程${i+1}: <span class="step-time">${escapeHtml(s)}</span></div>`).join('')}</div>
+      </div>`;
+    })()}
+
     ${p.priceTable&&p.priceTable.length ? `
       <div style="margin-top:18px;">
         <div style="font-size:12px;font-weight:700;color:#2563eb;margin-bottom:10px;letter-spacing:0.5px;">📊 数量別単価テーブル</div>
@@ -4383,6 +4396,30 @@ function autoFillProduct() {
       if (lastRec && lastRec.machine) machineEl.value = lastRec.machine;
     }
 
+    // 工程時間：新規登録で工程欄が全部空のときだけ、同じ製品の前回実績を自動入力（修正OK）
+    if (!window._editingProdId) {
+      let _anyStep = false;
+      for (let _si = 1; _si <= processStepCount; _si++) {
+        const _se = document.getElementById('step-'+_si);
+        if (_se && _se.value.trim()) { _anyStep = true; break; }
+      }
+      const _lr = _latestProduction(fignum);
+      if (!_anyStep && _lr && Array.isArray(_lr.steps) && _lr.steps.length) {
+        renderProcessSteps(_lr.steps.length);
+        _lr.steps.forEach(function(s,i){ const el=document.getElementById('step-'+(i+1)); if(el) el.value=s; });
+        const _lh = document.getElementById('last-steps-hint');
+        if (_lh) _lh.textContent = '✅ 前回（'+(_lr.date||'')+'）の工程時間を自動入力しました（修正OK）';
+      }
+      // 外注：実績フォームの外注が空なら、製品マスタの外注を自動セット
+      const _ob = document.getElementById('rec-outsource-rows');
+      if (_ob && _ob.children.length === 0) {
+        const _pm = (DB.products||[]).find(function(pp){ return pp.fignum === fignum; });
+        if (_pm && Array.isArray(_pm.outsource) && _pm.outsource.length) {
+          _pm.outsource.forEach(function(o){ addRecOutsourceRow(o); });
+        }
+      }
+    }
+
     if (looked.row && prod.priceTable && prod.priceTable.length > 0) {
       priceHint.style.display = 'block';
       priceHint.textContent = `✅ ${qty}個 → ${looked.row.qty}個〜の単価を適用`;
@@ -4466,6 +4503,8 @@ function clearProductionForm() {
   if (copyBtn) { copyBtn.dataset.active = 'false'; copyBtn.style.background = '#94a3b8'; copyBtn.style.cursor = 'not-allowed'; copyBtn.style.opacity = '0.5'; }
   if (lastHint) lastHint.textContent = '';
   renderProcessSteps(1);
+  const _s1 = document.getElementById('step-1');
+  if (_s1) _s1.value = ''; // renderProcessStepsは値を保持する仕様なので明示的に空へ
 }
 
 function saveProduction() {
