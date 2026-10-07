@@ -1600,24 +1600,14 @@
 </div>
 
 <div class="modal-overlay" id="worksheet-modal">
-  <div class="modal" style="max-width:620px;">
+  <div class="modal" style="max-width:860px;">
     <div class="modal-header">
       <div class="modal-title">📝 作業書を作成</div>
       <button class="modal-close" onclick="closeModal('worksheet-modal')">✕</button>
     </div>
-    <div style="font-size:13px;color:var(--text2);margin-bottom:6px;" id="ws-info"></div>
-    <div style="font-size:12px;color:var(--text2);background:var(--bg3);border-radius:8px;padding:8px 11px;margin-bottom:10px;">
-      📦 <strong>材料発注数</strong>＝材料屋さんに頼む数 ／ 🚚 <strong>納品数</strong>＝お客様に納める製品の数
-    </div>
+    <div style="margin-bottom:6px;" id="ws-info"></div>
     <div id="ws-product-info" style="margin-bottom:14px;"></div>
     <div id="ws-mat-area"></div>
-    <div class="form-group" style="margin-bottom:14px;">
-      <label>納期（空欄でもOK）</label>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <select id="ws-due-year" style="width:110px;"></select>
-        <input type="text" id="ws-due" placeholder="例：7/25 または 7月25日" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();submitWorksheet();}">
-      </div>
-    </div>
     <div class="form-group" style="margin-bottom:20px;">
       <label>🔧 作業員へのメモ（作業書に印刷。ここで書き足しOK）</label>
       <textarea id="ws-worker-note" placeholder="例：バリ取り注意、過去に寸法クレームあり など" style="min-height:64px;"></textarea>
@@ -2970,16 +2960,39 @@ function _latestProduction(fignum){
 }
 
 // 作業書を作成（数量を聞いて印刷）
+// 作業書モーダルの外注行（✕で削除、＋で追加）
+function wsAddOsRow(data){
+  const tb=document.getElementById('ws-os-rows'); if(!tb) return;
+  const tr=document.createElement('div'); tr.className='ws-os-row';
+  tr.style.cssText='display:grid;grid-template-columns:1.2fr 1.5fr 92px 108px 32px;gap:7px;align-items:center;margin-bottom:7px;';
+  tr.innerHTML = `<input type="text" class="ws-o-name" list="pf-outsource-list" value="${escapeHtml(data&&data.name||'')}" placeholder="外注先" style="font-size:13px;">`
+    +`<input type="text" class="ws-o-note" value="${escapeHtml(data&&data.note||'')}" placeholder="加工内容" style="font-size:13px;">`
+    +`<input type="number" class="ws-o-price" value="${(data&&data.price)||''}" placeholder="単価¥" style="text-align:right;font-size:13px;">`
+    +`<select class="ws-o-unit" style="font-size:13px;"><option value="per"${(!data||data.priceUnit!=='total')?' selected':''}>1個あたり</option><option value="total"${(data&&data.priceUnit==='total')?' selected':''}>一式</option></select>`
+    +`<button type="button" style="background:#fee2e2;color:#dc2626;border:none;border-radius:7px;height:32px;cursor:pointer;font-weight:700;" onclick="this.parentElement.remove()">✕</button>`;
+  tb.appendChild(tr);
+}
+
 function createWorksheet(id){
   const p = DB.products.find(x=>x.id===id);
   if(!p){ showToast('製品が見つかりません','error'); return; }
   window._wsProductId = id;
-  document.getElementById('ws-info').textContent = `${p.fignum||''} / ${p.name||''}`;
-  document.getElementById('ws-due').value = '';
   document.getElementById('ws-worker-note').value = p.workerNote || '';
-  // 製品情報パネル（単価・数量別テーブル・材料・外注・クレーム警告）
+
+  // ===== 最上段：受注先・品番・品名＋単価欄 =====
+  document.getElementById('ws-info').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+      <span style="font-weight:700;color:var(--text2);font-size:14px;">${escapeHtml(p.client||'受注先未設定')}</span>
+      <span class="badge badge-blue" style="font-size:13px;">${escapeHtml(p.fignum||'')}</span>
+      <span style="font-weight:700;font-size:15px;">${escapeHtml(p.name||'')}</span>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:7px;">
+        <span style="font-size:12.5px;font-weight:700;color:var(--text2);">単価 ¥</span>
+        <input type="number" id="ws-price-ovr" value="${p.price||0}" min="0" style="width:116px;text-align:right;font-weight:700;font-size:15px;">
+      </span>
+    </div>`;
+
+  // ===== クレーム警告＋数量別単価（あるときだけ） =====
   (function(){
-    const mats0 = _getMatsOf(p);
     const claims = [...new Set([...(p.claims||[]).map(c=>c&&c.note ? ((c.date?'['+String(c.date).replace(/-/g,'/')+'] ':'')+c.note) : null), p.claimNote].filter(Boolean))];
     let html = '';
     if (claims.length) {
@@ -2988,69 +3001,88 @@ function createWorksheet(id){
         ${claims.map(n=>`<div style="font-size:12px;color:#991b1b;">・${escapeHtml(n)}</div>`).join('')}
       </div>`;
     }
-    let priceHtml = '';
     if (p.priceTable && p.priceTable.length) {
       const rows = p.priceTable.slice().sort((a,b)=>a.qty-b.qty)
         .map(r=>`${r.qty}個〜 ¥${fmt(r.price)}`).join('　／　');
-      priceHtml = `<div style="font-size:12px;"><strong>数量別単価：</strong>${rows}<span style="color:#2563eb;">（納品数に応じて自動適用）</span></div>`;
-    } else {
-      priceHtml = `<div style="font-size:12px;"><strong>製品単価：</strong>¥${fmt(p.price||0)}</div>`;
+      html += `<div style="font-size:12px;color:var(--text2);background:var(--bg3);border-radius:8px;padding:7px 11px;margin-bottom:4px;">📊 数量別単価：${rows}（納品数で自動適用）</div>`;
     }
-    const matHtml = mats0.length ? `<div style="font-size:12px;margin-top:3px;"><strong>材料：</strong>${mats0.map(m=>[m.supplier,m.name,m.size].filter(Boolean).join(' ')).join('、')||'—'}</div>` : '';
-    const osHtml = (p.outsource&&p.outsource.length) ? `<div style="font-size:12px;margin-top:3px;"><strong>外注：</strong>${p.outsource.map(o=>`${o.name||''}${o.price?'（¥'+fmt(o.price)+(o.priceUnit==='total'?'/1式':'/個')+'）':''}`).join('、')}</div>` : '';
-    html += `<div style="background:var(--bg3);border-radius:8px;padding:9px 12px;">${priceHtml}${matHtml}${osHtml}</div>`;
     document.getElementById('ws-product-info').innerHTML = html;
   })();
 
-  // 材料一覧（メイン＋追加）
+  // ===== 材料 =====
   const mats = _getMatsOf(p);
+  const dispMats = mats.length ? mats : [{}];
   const NUM = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
   const box = document.getElementById('ws-mat-area');
 
-  if(mats.length <= 1){
-    // 材料が1個以下 → 材料発注数と納品数を横並び2分割
-    box.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #059669;border-radius:8px;padding:11px 13px;">
-          <label style="color:#166534;font-size:13px;display:block;margin-bottom:6px;">📦 材料発注数（ヶ）*</label>
-          <input type="number" class="ws-qty-input" data-idx="0" value="" min="1" placeholder="例：10">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#1e40af;margin-top:8px;font-weight:700;cursor:pointer;"><input type="checkbox" class="ws-stock-input" data-idx="0" style="width:16px;height:16px;">📦 在庫から出す（発注しない）</label>
+  // --- 青枠：毎回入力（材料ごとの発注数＋在庫、納品数、納期） ---
+  const qtyItems = dispMats.map((m,i)=>`
+      <div style="display:flex;flex-direction:column;gap:3px;">
+        <span style="font-size:12px;font-weight:800;color:#166534;">📦 発注数${dispMats.length>1?(' '+(NUM[i]||(i+1))):''} ${escapeHtml(m.name||'材料')}</span>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <input type="number" class="ws-qty-input" data-idx="${i}" value="" min="0" placeholder="0" style="width:86px;text-align:right;font-weight:700;font-size:16px;padding:9px 10px;">
+          <span style="font-size:13px;font-weight:700;color:var(--text2);">ヶ</span>
+          <label style="display:flex;align-items:center;gap:4px;font-size:11.5px;color:#1e40af;font-weight:700;cursor:pointer;white-space:nowrap;"><input type="checkbox" class="ws-stock-input" data-idx="${i}" style="width:16px;height:16px;">📦在庫</label>
         </div>
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:8px;padding:11px 13px;">
-          <label style="color:#1e40af;font-size:13px;display:block;margin-bottom:6px;">🚚 納品数（個）*</label>
-          <input type="number" id="ws-prod-qty" value="" min="1" placeholder="例：10">
+      </div>`).join('<div style="width:1.5px;align-self:stretch;background:#bfdbfe;"></div>');
+
+  const mainZone = `
+    <div style="border:2.5px solid #2563eb;background:#eff6ff;border-radius:12px;padding:14px 16px;margin-bottom:12px;">
+      <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;">
+        ${qtyItems}
+        <div style="width:1.5px;align-self:stretch;background:#bfdbfe;"></div>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font-size:12px;font-weight:800;color:#1e40af;">🚚 納品数 *</span>
+          <div style="display:flex;align-items:center;gap:5px;">
+            <input type="number" id="ws-prod-qty" value="" min="1" placeholder="例:10" style="width:86px;text-align:right;font-weight:700;font-size:16px;padding:9px 10px;" onkeydown="if(event.key==='Enter'){event.preventDefault();submitWorksheet();}">
+            <span style="font-size:13px;font-weight:700;color:var(--text2);">個</span>
+          </div>
         </div>
-      </div>`;
-  } else {
-    // 材料が複数 → 表で材料ごとに個数入力
-    const rows = mats.map((m,i)=>`
-      <tr>
-        <td style="text-align:center;font-weight:700;color:#166534;white-space:nowrap;">${NUM[i]||(i+1)}</td>
-        <td style="font-size:13px;">${escapeHtml(m.supplier||'—')}</td>
-        <td style="font-size:13px;">${escapeHtml(m.name||'—')}</td>
-        <td style="font-size:13px;">${escapeHtml(m.size||'—')}</td>
-        <td style="white-space:nowrap;"><input type="number" class="ws-qty-input" data-idx="${i}" value="" min="0" placeholder="0" style="width:78px;text-align:right;"> ヶ<label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#1e40af;margin-top:4px;font-weight:700;cursor:pointer;"><input type="checkbox" class="ws-stock-input" data-idx="${i}">📦在庫から</label></td>
-      </tr>`).join('');
-    box.innerHTML = `
-      <div style="font-size:12px;color:#166534;font-weight:700;margin-bottom:8px;">📦 材料発注数（材料ごとに入力）</div>
-      <div style="overflow-x:auto;margin-bottom:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #059669;border-radius:8px;padding:10px 12px;">
-        <table style="width:100%;font-size:13px;">
-          <thead><tr>
-            <th style="background:transparent;border-bottom:1px solid var(--border);font-size:12px;padding:5px 8px;text-align:center;width:34px;"></th>
-            <th style="background:transparent;border-bottom:1px solid var(--border);font-size:12px;padding:5px 8px;text-align:left;">材料発注先</th>
-            <th style="background:transparent;border-bottom:1px solid var(--border);font-size:12px;padding:5px 8px;text-align:left;">材料名</th>
-            <th style="background:transparent;border-bottom:1px solid var(--border);font-size:12px;padding:5px 8px;text-align:left;">材料寸法</th>
-            <th style="background:transparent;border-bottom:1px solid var(--border);font-size:12px;padding:5px 8px;text-align:right;">発注数</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
+        <div style="width:1.5px;align-self:stretch;background:#bfdbfe;"></div>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font-size:12px;font-weight:800;color:var(--text2);">📅 納期（空欄OK）</span>
+          <div style="display:flex;gap:6px;">
+            <select id="ws-due-year" style="width:96px;"></select>
+            <input type="text" id="ws-due" placeholder="例：11/25" style="width:124px;" onkeydown="if(event.key==='Enter'){event.preventDefault();submitWorksheet();}">
+          </div>
+        </div>
       </div>
-      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:8px;padding:11px 13px;margin-bottom:16px;">
-        <label style="color:#1e40af;font-size:13px;display:block;margin-bottom:6px;">🚚 納品数（個）*</label>
-        <input type="number" id="ws-prod-qty" value="" min="1" placeholder="例：10" style="max-width:200px;">
-      </div>`;
-  }
-  // 納期の年セレクト（今年を基準に前後を並べる。年が変われば自動で今年に）
+    </div>`;
+
+  // --- 詳細（材料・外注）：折りたたみ ---
+  const matRows = dispMats.map((m,i)=>`
+        <div style="display:grid;grid-template-columns:26px 1.3fr 1.1fr 1.2fr 86px;gap:8px;align-items:center;margin-bottom:7px;">
+          <div style="font-weight:800;color:#166534;text-align:center;">${dispMats.length>1?(NUM[i]||(i+1)):''}</div>
+          <input type="text" class="ws-m-supplier" data-idx="${i}" list="pf-mat-supplier-list" value="${escapeHtml(m.supplier||'')}" placeholder="材料発注先" style="font-size:13px;">
+          <input type="text" class="ws-m-name" data-idx="${i}" value="${escapeHtml(m.name||'')}" placeholder="材料名" style="font-size:13px;">
+          <input type="text" class="ws-m-size" data-idx="${i}" value="${escapeHtml(m.size||'')}" placeholder="寸法" style="font-size:13px;">
+          <input type="number" class="ws-m-price" data-idx="${i}" value="${m.price||''}" placeholder="単価¥" style="text-align:right;font-size:13px;">
+        </div>`).join('');
+
+  const detailsBlock = `
+    <details id="ws-adv" style="border:1px solid var(--border);border-radius:12px;background:var(--bg2);margin-bottom:12px;overflow:hidden;">
+      <summary style="cursor:pointer;list-style:none;padding:11px 16px;font-size:13px;font-weight:800;color:var(--text2);">✏ 詳細を変更（材料・外注）── この作業書だけに反映</summary>
+      <div style="padding:2px 14px 13px;">
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #86efac;border-radius:10px;padding:11px 13px;margin-bottom:10px;">
+          <div style="font-size:12px;font-weight:800;color:#166534;margin-bottom:7px;">🪵 材料の詳細</div>
+          <div style="display:grid;grid-template-columns:26px 1.3fr 1.1fr 1.2fr 86px;gap:8px;font-size:11px;font-weight:700;color:#166534;margin-bottom:4px;"><div></div><div>材料発注先</div><div>材料名</div><div>材料寸法</div><div>単価¥</div></div>
+          ${matRows}
+        </div>
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-left:4px solid #fdba74;border-radius:10px;padding:11px 13px;">
+          <div style="font-size:12px;font-weight:800;color:#9a3412;margin-bottom:7px;">🏭 外注</div>
+          <div style="display:grid;grid-template-columns:1.2fr 1.5fr 92px 108px 32px;gap:7px;font-size:11px;font-weight:700;color:#9a3412;margin-bottom:4px;"><div>外注先</div><div>加工内容</div><div>単価¥</div><div>単価の単位</div><div></div></div>
+          <div id="ws-os-rows"></div>
+          <button type="button" class="btn btn-ghost btn-xs" style="border:1.5px dashed #fdba74;color:#9a3412;background:#fff;" onclick="wsAddOsRow()">＋ 外注を追加（今回だけ）</button>
+        </div>
+      </div>
+    </details>`;
+
+  box.innerHTML = mainZone + detailsBlock;
+
+  // 外注の既存行をプリセット
+  (p.outsource||[]).forEach(o=>wsAddOsRow(o));
+
+  // 納期の年セレクト
   const ySel = document.getElementById('ws-due-year');
   if(ySel){
     const nowY = new Date().getFullYear();
@@ -3060,11 +3092,11 @@ function createWorksheet(id){
     }
     ySel.innerHTML = opts;
   }
+  document.getElementById('ws-due').value = '';
+
   openModal('worksheet-modal');
   setTimeout(()=>{ const el=document.querySelector('.ws-qty-input'); if(el){ el.focus(); el.select(); } }, 100);
 }
-
-// 材料一覧（メイン＋追加）を取得
 function _getMatsOf(p){
   const mats=[];
   if(p.matName||p.matSupplier||p.matSize||p.matPrice) mats.push({supplier:p.matSupplier,name:p.matName,size:p.matSize,price:p.matPrice});
@@ -3099,6 +3131,30 @@ function submitWorksheet(){
   // 数量別単価テーブルがあれば、納品数に応じた単価を自動適用（例：25個→10〜99の段）
   const _lp = lookupPrice(p.priceTable, prodQty, p.price||0, p.matPrice||0);
   const pw = Object.assign({}, p, { price: _lp.price });
+  // 材料・単価の上書き（この作業書と実績だけに効く。製品登録は変わらない）
+  const _ovr = [...document.querySelectorAll('.ws-m-supplier')].map(el=>{
+    const ix = el.dataset.idx;
+    const g = (cls)=>{ const e=document.querySelector('.'+cls+'[data-idx="'+ix+'"]'); return e ? e.value.trim() : ''; };
+    return { supplier:g('ws-m-supplier'), name:g('ws-m-name'), size:g('ws-m-size'), price:parseFloat(g('ws-m-price'))||0 };
+  });
+  if(_ovr.length){
+    const o0 = _ovr[0];
+    pw.matSupplier = o0.supplier; pw.matName = o0.name; pw.matSize = o0.size; pw.matPrice = o0.price;
+    pw.extraMaterials = _ovr.slice(1);
+  }
+  const _pvEl = document.getElementById('ws-price-ovr');
+  const _pv = _pvEl ? parseFloat(_pvEl.value) : NaN;
+  // 単価欄をプリセット（登録単価）から書き換えたときだけ、その値で確定（数量別より優先）
+  if(!isNaN(_pv) && _pv >= 0 && _pv !== (p.price||0)){ pw.price = _pv; pw.priceTable = []; }
+  // 外注の上書き（✕で消した・＋で足した・値を変えた、すべてこの作業書だけに反映）
+  pw.outsource = [...document.querySelectorAll('.ws-os-row')].map(function(r){
+    return {
+      name: r.querySelector('.ws-o-name').value.trim(),
+      note: r.querySelector('.ws-o-note').value.trim(),
+      price: parseFloat(r.querySelector('.ws-o-price').value)||0,
+      priceUnit: r.querySelector('.ws-o-unit').value
+    };
+  }).filter(function(o){ return o.name||o.note||o.price; });
   const _newRec = saveWorksheetRecord(pw, qtys, prodQty, due, stocks);
   closeModal('worksheet-modal');
   closeModal('product-detail-modal');
