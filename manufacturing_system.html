@@ -3216,6 +3216,19 @@ function renderDueCalendar(){
   grid.innerHTML = html;
   document.getElementById('due-cal-day-list').innerHTML = '';
 }
+// カレンダーの日別リストから実績を削除（ダブり掃除用）
+function calDeleteProd(id, day){
+  const p = DB.productions.find(x=>x.id===id);
+  if(!p) return;
+  if(!confirm('この実績を削除します。\n'+(p.no?p.no+'\n':'')+(p.fignum?p.fignum+'　':'')+(p.name||'')+'（'+(p.qty||0)+'個、納期 '+(p.due||'未設定')+'）\n\n売上・カレンダー・材料手配からも消えます。よろしいですか？')) return;
+  DB.productions = DB.productions.filter(x=>x.id!==id);
+  try{ recordHistory('delete','production', (p.fignum||p.name||'実績')+' を削除（'+(p.qty||0)+'個）', null, null); }catch(e){}
+  save();
+  refreshAllViews();
+  calShowDay(day); // 同じ日のリストを開いたまま更新
+  showToast('実績を削除しました');
+}
+
 function calShowDay(d){
   const ds = `${_calY}-${String(_calM).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   const list = (DB.productions||[]).filter(r=>{
@@ -3231,7 +3244,7 @@ function calShowDay(d){
         <td style="white-space:nowrap;">${escapeHtml(r.client||'—')}</td>
         <td>${r.fignum?`<span class="badge badge-blue">${escapeHtml(r.fignum)}</span> `:''}${escapeHtml(r.name||'')}</td>
         <td style="text-align:right;white-space:nowrap;">${r.qty} 個</td>
-        <td style="white-space:nowrap;" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-xs" onclick="editProduction('${r.id}')">編集</button></td>
+        <td style="white-space:nowrap;" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-xs" onclick="editProduction('${r.id}')">編集</button> <button class="btn btn-xs" style="background:#fee2e2;color:#dc2626;" onclick="calDeleteProd('${r.id}', ${d})">🗑</button></td>
       </tr>`).join('')}</tbody>
     </table></div>`:''}
     ${evs.map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:8px;margin-bottom:5px;">
@@ -3282,22 +3295,23 @@ function printDueList(){
         });
         return '<td class="m">'+parts.map(escapeHtml).join('　').replace(/在庫/g,'<b>在庫</b>')+'</td>';
       })();
-      rows+=`<tr>${i===0?`<td rowspan="${map[d].length}" class="d">${_calM}/${d}（${wd}）</td>`:''}${r._ev?`<td colspan="5">📝 ${escapeHtml(r._ev)}</td>`:`<td>${escapeHtml(r.client||'')}</td><td>${escapeHtml(r.fignum||'')}</td><td>${escapeHtml(r.name||'')}</td><td class="r">${r.qty} 個</td>${matCell}`}</tr>`;
+      rows+=`<tr>${i===0?`<td rowspan="${map[d].length}" class="d">${_calM}/${d}(${wd})</td>`:''}${r._ev?`<td colspan="5">📝 ${escapeHtml(r._ev)}</td>`:`<td class="cl">${escapeHtml(r.client||'')}</td><td>${escapeHtml(r.fignum||'')}</td><td>${escapeHtml(r.name||'')}</td><td class="r">${r.qty}</td>${matCell}`}</tr>`;
     });
   });
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>納期一覧 ${_calY}年${_calM}月</title><style>
     body{font-family:'Yu Gothic','Meiryo',sans-serif;padding:22px;}
     h1{font-size:17px;border-bottom:2.5px solid #333;padding-bottom:6px;margin:0 0 14px;}
     table{width:100%;border-collapse:collapse;font-size:12px;}
-    th,td{border:1px solid #999;padding:6px 9px;text-align:left;}
-    th{background:#eee;font-size:11px;}
-    .d{font-weight:700;white-space:nowrap;background:#fafafa;vertical-align:top;}
+    th,td{border:1px solid #999;padding:4px 6px;text-align:left;}
+    th{background:#eee;font-size:10px;white-space:nowrap;}
+    .d{font-weight:700;white-space:nowrap;background:#fafafa;vertical-align:top;font-size:11px;padding:4px 5px;}
+    .cl{font-size:10.5px;color:#333;}
     .r{text-align:right;white-space:nowrap;}
-    .m{font-size:10px;color:#444;}
+    .m{font-size:9.5px;color:#444;line-height:1.5;}
     @page{size:A4;margin:14mm;}
   </style></head><body>
   <h1>📅 納期一覧　${_calY}年${_calM}月</h1>
-  <table><thead><tr><th style="width:88px;">納期</th><th>受注先</th><th>図番</th><th>品名</th><th style="width:58px;">数量</th><th style="width:150px;">材料発注先・発注数</th></tr></thead><tbody>${rows}</tbody></table>
+  <table><thead><tr><th style="width:62px;">納期</th><th class="c-cl">受注先</th><th>図番</th><th>品名</th><th style="width:42px;">数量</th><th style="width:118px;">材料発注先・発注数</th></tr></thead><tbody>${rows}</tbody></table>
   <script>window.print();<\/script></body></html>`;
   const w=window.open('','_blank');
   if(!w){ showToast('ポップアップがブロックされました','error'); return; }
