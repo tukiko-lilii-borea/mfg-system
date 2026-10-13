@@ -3264,7 +3264,7 @@ function calShowDay(d){
   document.getElementById('due-cal-day-list').innerHTML = `
     <div style="font-size:13px;font-weight:700;margin-bottom:6px;">${_calM}/${d} の予定</div>
     ${list.length?`<div class="table-wrap" style="margin-bottom:10px;"><table style="width:100%;font-size:13px;">
-      <thead><tr><th>受注先</th><th>図番 / 品名</th><th style="text-align:right;">数量</th><th>納期変更</th><th></th></tr></thead>
+      <thead><tr><th>受注先</th><th>図番 / 品名</th><th style="text-align:right;">数量</th><th>納期</th><th></th></tr></thead>
       <tbody>${list.map(r=>`<tr onclick="showProdDetail('${r.id}')" style="cursor:pointer;">
         <td style="white-space:nowrap;">${escapeHtml(r.client||'—')}</td>
         <td>${r.fignum?`<span class="badge badge-blue">${escapeHtml(r.fignum)}</span> `:''}${escapeHtml(r.name||'')}</td>
