@@ -3270,7 +3270,19 @@ function printDueList(){
   days.forEach(d=>{
     const wd=W[new Date(_calY,_calM-1,d).getDay()];
     map[d].forEach((r,i)=>{
-      rows+=`<tr>${i===0?`<td rowspan="${map[d].length}" class="d">${_calM}/${d}（${wd}）</td>`:''}${r._ev?`<td colspan="4">📝 ${escapeHtml(r._ev)}</td>`:`<td>${escapeHtml(r.client||'')}</td><td>${escapeHtml(r.fignum||'')}</td><td>${escapeHtml(r.name||'')}</td><td class="r">${r.qty} 個</td>`}</tr>`;
+      const matCell = r._ev ? '' : (()=>{
+        const ms=(r.materials||[]).filter(m=>m&&(m.supplier||m.name||m.qty||m.stock));
+        if(!ms.length) return '<td class="m">—</td>';
+        const NUM=['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+        const parts=ms.map((m,ix)=>{
+          const head = ms.length>1 ? (NUM[ix]||(ix+1)) : '';
+          const sup = m.stock ? '在庫' : (m.supplier||'未記入');
+          const q = m.qty ? (m.qty+'ヶ') : '';
+          return head+sup+(q?(' '+q):'');
+        });
+        return '<td class="m">'+parts.map(escapeHtml).join('　').replace(/在庫/g,'<b>在庫</b>')+'</td>';
+      })();
+      rows+=`<tr>${i===0?`<td rowspan="${map[d].length}" class="d">${_calM}/${d}（${wd}）</td>`:''}${r._ev?`<td colspan="5">📝 ${escapeHtml(r._ev)}</td>`:`<td>${escapeHtml(r.client||'')}</td><td>${escapeHtml(r.fignum||'')}</td><td>${escapeHtml(r.name||'')}</td><td class="r">${r.qty} 個</td>${matCell}`}</tr>`;
     });
   });
   const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>納期一覧 ${_calY}年${_calM}月</title><style>
@@ -3281,10 +3293,11 @@ function printDueList(){
     th{background:#eee;font-size:11px;}
     .d{font-weight:700;white-space:nowrap;background:#fafafa;vertical-align:top;}
     .r{text-align:right;white-space:nowrap;}
+    .m{font-size:10px;color:#444;}
     @page{size:A4;margin:14mm;}
   </style></head><body>
   <h1>📅 納期一覧　${_calY}年${_calM}月</h1>
-  <table><thead><tr><th style="width:88px;">納期</th><th>受注先</th><th>図番</th><th>品名</th><th style="width:58px;">数量</th></tr></thead><tbody>${rows}</tbody></table>
+  <table><thead><tr><th style="width:88px;">納期</th><th>受注先</th><th>図番</th><th>品名</th><th style="width:58px;">数量</th><th style="width:150px;">材料発注先・発注数</th></tr></thead><tbody>${rows}</tbody></table>
   <script>window.print();<\/script></body></html>`;
   const w=window.open('','_blank');
   if(!w){ showToast('ポップアップがブロックされました','error'); return; }
