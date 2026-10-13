@@ -3216,6 +3216,31 @@ function renderDueCalendar(){
   grid.innerHTML = html;
   document.getElementById('due-cal-day-list').innerHTML = '';
 }
+// カレンダーの日別リストから納期をその場変更（1件ずつ確認）
+function calChangeDue(id, day, inp){
+  const p = DB.productions.find(x=>x.id===id);
+  if(!p){ return; }
+  const v = inp.value; // YYYY-MM-DD
+  const revert = function(){
+    const dt=_parseDue(p.due);
+    inp.value = dt ? (dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')) : '';
+  };
+  if(!v){ revert(); return; }
+  const parts = v.split('-').map(Number);
+  const newDue = parts[0]+'/'+parts[1]+'/'+parts[2];
+  if(newDue === p.due){ return; }
+  if(!confirm('納期を変更します。\n'+(p.fignum?p.fignum+'　':'')+(p.name||'')+'（'+(p.qty||0)+'個）\n\n'+(p.due||'未設定')+'　→　'+newDue+'\n\nよろしいですか？')){
+    revert(); return;
+  }
+  p.due = newDue;
+  p.updatedAt = Date.now();
+  try{ recordHistory('edit','production',(p.fignum||p.name||'実績')+' の納期変更 → '+newDue, null, p); }catch(e){}
+  save();
+  refreshAllViews();
+  calShowDay(day); // 元の日のリストを開いたまま（移動した行は消える）
+  showToast('納期を '+newDue+' に変更しました');
+}
+
 // カレンダーの日別リストから実績を削除（ダブり掃除用）
 function calDeleteProd(id, day){
   const p = DB.productions.find(x=>x.id===id);
@@ -3239,11 +3264,12 @@ function calShowDay(d){
   document.getElementById('due-cal-day-list').innerHTML = `
     <div style="font-size:13px;font-weight:700;margin-bottom:6px;">${_calM}/${d} の予定</div>
     ${list.length?`<div class="table-wrap" style="margin-bottom:10px;"><table style="width:100%;font-size:13px;">
-      <thead><tr><th>受注先</th><th>図番 / 品名</th><th style="text-align:right;">数量</th><th></th></tr></thead>
+      <thead><tr><th>受注先</th><th>図番 / 品名</th><th style="text-align:right;">数量</th><th>納期変更</th><th></th></tr></thead>
       <tbody>${list.map(r=>`<tr onclick="showProdDetail('${r.id}')" style="cursor:pointer;">
         <td style="white-space:nowrap;">${escapeHtml(r.client||'—')}</td>
         <td>${r.fignum?`<span class="badge badge-blue">${escapeHtml(r.fignum)}</span> `:''}${escapeHtml(r.name||'')}</td>
         <td style="text-align:right;white-space:nowrap;">${r.qty} 個</td>
+        <td style="white-space:nowrap;" onclick="event.stopPropagation()"><input type="date" value="${(()=>{const dt=_parseDue(r.due);return dt?`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`:'';})()}" onchange="calChangeDue('${r.id}', ${d}, this)" style="width:132px;font-size:12px;padding:4px 6px;" title="納期をその場で変更"></td>
         <td style="white-space:nowrap;" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-xs" onclick="editProduction('${r.id}')">編集</button> <button class="btn btn-xs" style="background:#fee2e2;color:#dc2626;" onclick="calDeleteProd('${r.id}', ${d})">🗑</button></td>
       </tr>`).join('')}</tbody>
     </table></div>`:''}
