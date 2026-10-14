@@ -4259,10 +4259,14 @@ function showProdDetail(id) {
       ${card(blue,'数量', fmt(p.qty)+' 個')}
     </div>
 
+    ${secLabel('■ 単価','#d97706')}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      ${card(orange,'製品単価','¥'+fmt(p.price||0)+' /個')}
+      ${card(orange,'材料単価',(()=>{ const ms=(p.materials||[]).filter(m=>m&&(m.price||m.supplier||m.name)); if(ms.length) return ms.map(m=>m.stock?'在庫':('¥'+fmt(m.price||0))).join(' / '); return p.matPrice?('¥'+fmt(Math.round(p.matPrice))+' /個'):'—'; })())}
+    </div>
+
     ${secLabel('■ 金額','#6b21a8')}
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-      ${card(purple,'製品単価','¥'+fmt(p.price||0)+' /個')}
-      ${card(purple,'材料単価',(()=>{ const ms=(p.materials||[]).filter(m=>m&&(m.price||m.supplier||m.name)); if(ms.length) return ms.map(m=>m.stock?'在庫':('¥'+fmt(m.price||0))).join(' / '); return p.matPrice?('¥'+fmt(Math.round(p.matPrice))+' /個'):'—'; })())}
       ${card(purple,'売上','¥'+fmt(_recSales(p)))}
       ${card(purple,'原価','¥'+fmt(_recCost(p)))}
       ${card(purple,'利益','<span style="color:#059669;">¥'+fmt(_recSales(p)-_recCost(p))+'</span>')}
