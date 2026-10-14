@@ -1072,6 +1072,9 @@
                 <th>No</th><th>日付</th><th class="hide-mobile">納期</th><th>機械</th><th>図番</th><th>品名</th>
                 <th class="hide-mobile">受注先</th>
                 <th>数量</th>
+                <th class="hide-mobile" style="text-align:right;">単価</th>
+                <th class="hide-mobile" style="text-align:right;">材料単価</th>
+                <th class="hide-mobile">材料寸法</th>
                 <th class="hide-mobile">合計時間</th>
                 <th>売上</th><th class="hide-mobile">利益</th>
                 <th>操作</th>
@@ -4167,6 +4170,9 @@ function filterProduction(q) {
       <td>${p.name||''}</td>
       <td class="hide-mobile">${p.client||'—'}</td>
       <td style="white-space:nowrap;">${fmt(p.qty)}個</td>
+      <td class="hide-mobile" style="white-space:nowrap;text-align:right;">¥${fmt(p.price||0)}</td>
+      <td class="hide-mobile" style="white-space:nowrap;text-align:right;font-size:12px;">${(()=>{ const ms=(p.materials||[]).filter(m=>m&&(m.price||m.supplier||m.name)); if(ms.length) return ms.map(m=>m.stock?'在庫':('¥'+fmt(m.price||0))).join(' / '); return p.matPrice?('¥'+fmt(Math.round(p.matPrice))):'—'; })()}</td>
+      <td class="hide-mobile" style="font-size:12px;color:var(--text2);">${(()=>{ const ms=(p.materials||[]).filter(m=>m&&m.size); if(ms.length) return ms.map(m=>escapeHtml(m.size)).join(' / '); const pm=(DB.products||[]).find(x=>x.fignum===p.fignum); const sz=pm?_getMatsOf(pm).map(m=>m.size).filter(Boolean):[]; return sz.length?sz.map(escapeHtml).join(' / '):'—'; })()}</td>
       <td class="hide-mobile" style="white-space:nowrap;">${fmtDuration(stepsToSeconds(p.steps))}</td>
       <td style="white-space:nowrap;">¥${fmt(_recSales(p))}</td>
       <td class="hide-mobile" style="white-space:nowrap;font-weight:700;color:#059669;">¥${fmt(_recSales(p)-_recCost(p))}</td>
@@ -4176,7 +4182,7 @@ function filterProduction(q) {
         <button class="btn btn-ghost btn-xs" onclick="deleteProd('${p.id}')" style="color:#dc2626;">削除</button>
       </td>
     </tr>
-  `).join('') : '<tr><td colspan="11"><div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-text">実績なし</div></div></td></tr>';
+  `).join('') : '<tr><td colspan="14"><div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-text">実績なし</div></div></td></tr>';
 
   // 買掛（表示中の年）
   const pay = {};
