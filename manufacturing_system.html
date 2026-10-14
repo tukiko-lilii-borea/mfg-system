@@ -4238,7 +4238,7 @@ function showProdDetail(id) {
   const purple = 'border-left:4px solid #9333ea;background:#faf5ff;';
   const lbl = 'font-size:11px;color:#64748b;font-weight:600;margin-bottom:5px;letter-spacing:0.5px;';
   const val = 'font-size:15px;font-weight:700;color:#0f172a;';
-  const card = (tone,label,value) => `<div style="${cardBase}${tone}"><div style="${lbl}">${label}</div><div style="${val}">${value||'—'}</div></div>`;
+  const card = (tone,label,value) => `<div style="${cardBase}${tone}cursor:pointer;" title="タップでコピー" onclick="copyText(this, this.lastElementChild.textContent.trim())"><div style="${lbl}">${label}</div><div style="${val}">${value||'—'}</div></div>`;
   const secLabel = (text,color) => `<div style="font-size:13px;font-weight:700;color:${color};margin:18px 0 10px;">${text}</div>`;
   const thS = 'background:transparent;font-size:11px;color:#64748b;font-weight:600;padding:5px 10px;border-bottom:1px solid var(--border);text-align:left;';
   const thR = thS.replace('text-align:left','text-align:right');
@@ -4246,7 +4246,8 @@ function showProdDetail(id) {
   const tdR = tdS+'text-align:right;white-space:nowrap;';
 
   document.getElementById('prod-detail-body').innerHTML = `
-    <div style="display:inline-block;background:#f3e8ff;color:#6b21a8;font-weight:700;font-size:13px;border:1.5px solid #9333ea;border-radius:999px;padding:3px 14px;margin-bottom:10px;">管理No ${p.no||''}</div>`+`
+    <div style="display:inline-block;background:#f3e8ff;color:#6b21a8;font-weight:700;font-size:13px;border:1.5px solid #9333ea;border-radius:999px;padding:3px 14px;margin-bottom:10px;">管理No ${p.no||''}</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">💡 各項目はタップでコピーできます</div>`+`
     ${secLabel('■ 基本情報','#1e40af')}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       ${card(blue,'日付', fmtDate(p.date))}
@@ -4285,10 +4286,10 @@ function showProdDetail(id) {
           <th style="${thR}">単価</th>
         </tr></thead>
         <tbody>${ms.map(m=>`<tr>
-          <td style="${tdS}">${escapeHtml(m.supplier||'—')}</td>
-          <td style="${tdS}">${escapeHtml(m.name||'—')}</td>
-          <td style="${tdS}">${escapeHtml(m.size||'—')}</td>
-          <td style="${tdR}">¥${fmt(m.price||0)}</td>
+          <td style="${tdS}cursor:pointer;" onclick="copyText(this, this.textContent.trim())">${escapeHtml(m.supplier||'—')}</td>
+          <td style="${tdS}cursor:pointer;" onclick="copyText(this, this.textContent.trim())">${escapeHtml(m.name||'—')}</td>
+          <td style="${tdS}cursor:pointer;" onclick="copyText(this, this.textContent.trim())">${escapeHtml(m.size||'—')}</td>
+          <td style="${tdR}cursor:pointer;" onclick="copyText(this, this.textContent.trim())">¥${fmt(m.price||0)}</td>
         </tr>`).join('')}</tbody>
       </table></div></div>`;
     })():''}
@@ -4302,11 +4303,11 @@ function showProdDetail(id) {
           <th style="${thR}">単価</th><th style="${thR}">発注数</th><th style="${thR}">小計</th>
         </tr></thead>
         <tbody>${p.materials.map(m=>`<tr>
-          <td style="${tdS}">${m.stock?'<span style="color:#1e40af;font-weight:700;">📦 在庫より</span>':escapeHtml(m.supplier||'—')}</td>
-          <td style="${tdS}">${escapeHtml(m.name||'—')}</td>
-          <td style="${tdS}">${escapeHtml(m.size||'—')}</td>
-          <td style="${tdR}">¥${fmt(m.price||0)}</td>
-          <td style="${tdR}">${m.qty||0} ヶ</td>
+          <td style="${tdS}cursor:pointer;" onclick="copyText(this, this.textContent.trim())">${m.stock?'<span style="color:#1e40af;font-weight:700;">📦 在庫より</span>':escapeHtml(m.supplier||'—')}</td>
+          <td style="${tdS}cursor:pointer;" onclick="copyText(this, this.textContent.trim())">${escapeHtml(m.name||'—')}</td>
+          <td style="${tdS}cursor:pointer;" onclick="copyText(this, this.textContent.trim())">${escapeHtml(m.size||'—')}</td>
+          <td style="${tdR}cursor:pointer;" onclick="copyText(this, this.textContent.trim())">¥${fmt(m.price||0)}</td>
+          <td style="${tdR}cursor:pointer;" onclick="copyText(this, this.textContent.trim())">${m.qty||0} ヶ</td>
           <td style="${tdR}font-weight:700;">¥${fmt((m.price||0)*(m.qty||0))}</td>
         </tr>`).join('')}</tbody>
       </table></div></div>
@@ -4321,9 +4322,9 @@ function showProdDetail(id) {
           <th style="${thR}">金額</th><th style="${thR}">小計</th>
         </tr></thead>
         <tbody>${p.outsourceInfo.map(o=>`<tr>
-          <td style="${tdS}">${escapeHtml(o.name||'—')}</td>
-          <td style="${tdS}">${escapeHtml(o.note||'—')}</td>
-          <td style="${tdR}">¥${fmt(o.price||0)}${o.priceUnit==='total'?'（1式）':'／個'}</td>
+          <td style="${tdS}cursor:pointer;" onclick="copyText(this, this.textContent.trim())">${escapeHtml(o.name||'—')}</td>
+          <td style="${tdS}cursor:pointer;" onclick="copyText(this, this.textContent.trim())">${escapeHtml(o.note||'—')}</td>
+          <td style="${tdR}cursor:pointer;" onclick="copyText(this, this.textContent.trim())">¥${fmt(o.price||0)}${o.priceUnit==='total'?'（1式）':'／個'}</td>
           <td style="${tdR}font-weight:700;">¥${fmt((o.price||0)*(o.priceUnit==='total'?1:(p.qty||0)))}</td>
         </tr>`).join('')}</tbody>
       </table></div></div>
