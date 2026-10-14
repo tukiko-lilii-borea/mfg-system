@@ -4261,10 +4261,33 @@ function showProdDetail(id) {
 
     ${secLabel('■ 金額','#6b21a8')}
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      ${card(purple,'製品単価','¥'+fmt(p.price||0)+' /個')}
+      ${card(purple,'材料単価',(()=>{ const ms=(p.materials||[]).filter(m=>m&&(m.price||m.supplier||m.name)); if(ms.length) return ms.map(m=>m.stock?'在庫':('¥'+fmt(m.price||0))).join(' / '); return p.matPrice?('¥'+fmt(Math.round(p.matPrice))+' /個'):'—'; })())}
       ${card(purple,'売上','¥'+fmt(_recSales(p)))}
       ${card(purple,'原価','¥'+fmt(_recCost(p)))}
       ${card(purple,'利益','<span style="color:#059669;">¥'+fmt(_recSales(p)-_recCost(p))+'</span>')}
     </div>
+
+    ${(!(p.materials&&p.materials.length))?(()=>{
+      const pm=(DB.products||[]).find(x=>x.fignum===p.fignum);
+      if(!pm) return '';
+      const ms=_getMatsOf(pm).filter(m=>m&&(m.supplier||m.name||m.size||m.price));
+      if(!ms.length) return '';
+      return `${secLabel('🪨 材料（製品登録より）','#166534')}
+      <div style="border:1px solid #bbf7d0;border-radius:10px;overflow:hidden;background:#f7fdf9;">
+      <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;">
+        <thead><tr>
+          <th style="${thS}">発注先</th><th style="${thS}">材料名</th><th style="${thS}">寸法</th>
+          <th style="${thR}">単価</th>
+        </tr></thead>
+        <tbody>${ms.map(m=>`<tr>
+          <td style="${tdS}">${escapeHtml(m.supplier||'—')}</td>
+          <td style="${tdS}">${escapeHtml(m.name||'—')}</td>
+          <td style="${tdS}">${escapeHtml(m.size||'—')}</td>
+          <td style="${tdR}">¥${fmt(m.price||0)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>`;
+    })():''}
 
     ${(p.materials&&p.materials.length)?`
       ${secLabel('🪨 材料明細','#166534')}
