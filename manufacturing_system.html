@@ -465,6 +465,9 @@
         <div class="nav-item" onclick="showSection('order')">
           <span class="nav-icon">📦</span>発注書
         </div>
+        <div class="nav-item" onclick="showSection('coverletter')">
+          <span class="nav-icon">✉️</span>送付状
+        </div>
         <div class="nav-item" onclick="showSection('material-order')">
           <span class="nav-icon">🪨</span>材料発注リスト
         </div>
@@ -1218,6 +1221,40 @@
     </section>
 
     <!-- ===== SALES ===== -->
+    <!-- ===== 送付状（窓付き封筒対応） ===== -->
+    <section class="section" id="sec-coverletter">
+      <div class="page-header">
+        <div><div class="page-title">✉️ 書類送付状</div><div class="page-subtitle">窓付き封筒に対応。宛先が窓の位置に印刷されます</div></div>
+        <button class="btn btn-primary btn-sm" onclick="printCoverLetter()">🖨 印刷</button>
+      </div>
+      <div class="card" style="max-width:720px;">
+        <div class="form-group">
+          <label>取引先から選ぶ（選ぶと下に自動入力。手で書き換えもOK）</label>
+          <select id="cl-sup-select" onchange="clPickSupplier(this.value)" style="max-width:360px;"><option value="">— 手入力 —</option></select>
+        </div>
+        <div style="display:grid;grid-template-columns:140px 1fr;gap:10px;margin-bottom:10px;">
+          <div><label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:3px;">郵便番号</label><input type="text" id="cl-zip" placeholder="546-0003"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:3px;">住所</label><input type="text" id="cl-address" placeholder="大阪市○○区○○ 1-2-3"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 120px;gap:10px;margin-bottom:14px;">
+          <div><label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:3px;">宛名（会社名）</label><input type="text" id="cl-name" placeholder="○○株式会社"></div>
+          <div><label style="font-size:11px;font-weight:700;color:var(--text2);display:block;margin-bottom:3px;">敬称</label><select id="cl-honor"><option value="御中" selected>御中</option><option value="様">様</option><option value="行">行</option><option value="">なし</option></select></div>
+        </div>
+        <div class="form-group">
+          <label>同封書類（チェック＋通数）</label>
+          <div id="cl-docs" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;"></div>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+            <input type="text" id="cl-doc-other" placeholder="その他（自由記入）" style="max-width:280px;">
+            <input type="number" id="cl-doc-other-n" value="1" min="1" style="width:70px;text-align:right;"> 通
+          </div>
+        </div>
+        <div class="form-group">
+          <label>ひとこと（空欄OK・挨拶文の下に印刷）</label>
+          <input type="text" id="cl-note" placeholder="例：今月分の請求書をお送りします">
+        </div>
+      </div>
+    </section>
+
     <!-- ===== 材料手配チェック ===== -->
     <section class="section" id="sec-mat-check">
       <div class="page-header">
@@ -2292,6 +2329,7 @@ function showSection(name, _isBack) {
   if (name === 'mycompany') loadMyCompany();
   if (name === 'sales-fiscal') renderSalesFiscal();
   if (name === 'mat-check') renderMatCheck();
+  if (name === 'coverletter') initCoverLetter();
   if (name === 'dashboard') renderDueCalendar();
   if (name === 'dashboard') renderMemoBoard();
   if (name === 'products') renderProducts();
@@ -2407,6 +2445,111 @@ function saveMyCompany(){
   loadMyCompany();
   try{ renderDashboard(); }catch(e){}
   showToast('自社情報を保存しました');
+}
+
+// ===== 書類送付状（窓付き封筒対応） =====
+const CL_DOCS = ['請求書','納品書','見積書','注文書','注文請書','検査成績表','図面'];
+function initCoverLetter(){
+  // 取引先プルダウン（あいうえお順）
+  const sel = document.getElementById('cl-sup-select');
+  const sups = (DB.companies||[]).slice().sort(function(a,b){ return toHiragana(a.kana||a.name||'').localeCompare(toHiragana(b.kana||b.name||''),'ja'); });
+  sel.innerHTML = '<option value="">— 手入力 —</option>' + sups.map(function(s){ return '<option value="'+s.id+'">'+escapeHtml(s.name)+'</option>'; }).join('');
+  // 書類チェックリスト
+  const box = document.getElementById('cl-docs');
+  if(box && !box.children.length){
+    box.innerHTML = CL_DOCS.map(function(nm,i){
+      return '<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;border:1px solid var(--border);border-radius:8px;padding:7px 10px;">'
+        +'<input type="checkbox" class="cl-doc-chk" data-name="'+nm+'" style="width:16px;height:16px;">'
+        +nm
+        +'<input type="number" class="cl-doc-n" data-name="'+nm+'" value="1" min="1" style="width:56px;text-align:right;margin-left:auto;"> 通'
+        +'</label>';
+    }).join('');
+  }
+}
+function clPickSupplier(id){
+  if(!id) return;
+  const s = (DB.companies||[]).find(function(x){ return x.id===id; });
+  if(!s) return;
+  document.getElementById('cl-zip').value = s.zip||'';
+  document.getElementById('cl-address').value = s.address||'';
+  document.getElementById('cl-name').value = s.name||'';
+}
+function printCoverLetter(){
+  const zip = document.getElementById('cl-zip').value.trim();
+  const addr = document.getElementById('cl-address').value.trim();
+  const name = document.getElementById('cl-name').value.trim();
+  const honor = document.getElementById('cl-honor').value;
+  if(!name){ showToast('宛名（会社名）を入力してください','error'); return; }
+  // 同封書類
+  const docs = [];
+  document.querySelectorAll('.cl-doc-chk').forEach(function(c){
+    if(c.checked){
+      const n = document.querySelector('.cl-doc-n[data-name="'+c.dataset.name+'"]');
+      docs.push({ name:c.dataset.name, n:(n&&parseInt(n.value,10))||1 });
+    }
+  });
+  const otherName = document.getElementById('cl-doc-other').value.trim();
+  if(otherName){ docs.push({ name:otherName, n:parseInt(document.getElementById('cl-doc-other-n').value,10)||1 }); }
+  const note = document.getElementById('cl-note').value.trim();
+  // 自社情報
+  const mc = (DB.myCompanies&&DB.myCompanies[0]) || DB.company || {};
+  const n = new Date();
+  const dateStr = n.getFullYear()+'年'+(n.getMonth()+1)+'月'+n.getDate()+'日';
+  const MARU = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+  const docRows = docs.length ? docs.map(function(dd,i){
+    return '<tr><td class="dn">'+(MARU[i]||(i+1))+'</td><td class="dd">'+escapeHtml(dd.name)+'</td><td class="dc">'+dd.n+' 通</td></tr>';
+  }).join('') : '<tr><td class="dn"></td><td class="dd" style="color:#999;">（同封書類の記載なし）</td><td class="dc"></td></tr>';
+
+  const html = '<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>書類送付状</title><style>'
+    +"body{font-family:'Yu Gothic','Meiryo',sans-serif;margin:0;font-size:12px;color:#111;}"
+    +'@page{size:A4 portrait;margin:0;}'
+    +'.sheet{position:relative;width:210mm;height:296mm;padding:0;box-sizing:border-box;}'
+    // 宛先（窓位置：上から約22mm・左から約18mm、幅85mm）
+    +'.win{position:absolute;top:22mm;left:18mm;width:88mm;}'
+    +'.win .zip{font-size:12.5px;margin-bottom:3mm;}'
+    +'.win .adr{font-size:12.5px;line-height:1.6;margin-bottom:4mm;}'
+    +'.win .nm{font-size:16px;font-weight:700;}'
+    // 折り線（上から99mm・198mm）
+    +'.fold{position:absolute;left:3mm;right:3mm;display:flex;justify-content:space-between;color:#888;font-size:9px;}'
+    +'.f1{top:97mm;} .f2{top:196mm;}'
+    // 発信者（右上）
+    +'.sender{position:absolute;top:22mm;right:16mm;text-align:left;font-size:10.5px;line-height:1.7;}'
+    // 本文
+    +'.body{position:absolute;top:112mm;left:22mm;right:22mm;}'
+    +'h1{text-align:center;font-size:17px;letter-spacing:6px;border-bottom:2px solid #333;padding-bottom:3mm;margin:0 0 8mm;}'
+    +'.greet{line-height:2;font-size:12px;}'
+    +'.keigu{text-align:right;margin:3mm 0 6mm;}'
+    +'table.docs{margin:0 auto;border-collapse:collapse;font-size:13px;min-width:95mm;}'
+    +'table.docs td{border-bottom:1px solid #999;padding:3mm 5mm;}'
+    +'.dn{width:10mm;} .dc{text-align:right;white-space:nowrap;width:22mm;}'
+    +'.ijo{text-align:right;margin-top:8mm;letter-spacing:4px;}'
+    +'</style></head><body><div class="sheet">'
+    +'<div class="win">'
+    +(zip?'<div class="zip">〒'+escapeHtml(zip)+'</div>':'')
+    +(addr?'<div class="adr">'+escapeHtml(addr)+'</div>':'')
+    +'<div class="nm">'+escapeHtml(name)+(honor?'　'+honor:'')+'</div>'
+    +'</div>'
+    +'<div class="sender">'
+    +'<div style="font-size:9.5px;color:#555;">発信日：'+dateStr+'</div>'
+    +'<div style="font-weight:700;font-size:12px;">'+escapeHtml(mc.name||'')+'</div>'
+    +((mc.zip||mc.address)?'<div>'+(mc.zip?'〒'+escapeHtml(mc.zip)+'　':'')+escapeHtml(mc.address||'')+'</div>':'')
+    +(mc.tel?'<div>TEL: '+escapeHtml(mc.tel)+(mc.fax?'　FAX: '+escapeHtml(mc.fax):'')+'</div>':'')
+    +(mc.email?'<div>email: '+escapeHtml(mc.email)+'</div>':'')
+    +'</div>'
+    +'<div class="fold f1"><span>◁</span><span>▷</span></div>'
+    +'<div class="fold f2"><span>◁</span><span>▷</span></div>'
+    +'<div class="body">'
+    +'<h1>書類送付のご案内</h1>'
+    +'<div class="greet">拝啓　時下、益々ご清栄のこととお喜び申し上げます。<br>以下のとおり書類をお送りいたします。<br>ご査収の程、何卒宜しくお願い申し上げます。</div>'
+    +(note?'<div style="margin-top:3mm;font-size:12px;">'+escapeHtml(note)+'</div>':'')
+    +'<div class="keigu">敬　具</div>'
+    +'<table class="docs">'+docRows+'</table>'
+    +'<div class="ijo">以　上</div>'
+    +'</div>'
+    +'</div><scr'+'ipt>window.print();</scr'+'ipt></body></html>';
+  const w=window.open('','_blank');
+  if(!w){ showToast('ポップアップがブロックされました','error'); return; }
+  w.document.write(html); w.document.close();
 }
 
 // ===== 材料手配チェック =====
@@ -5097,6 +5240,13 @@ function toggleSelectAll() {
   if (matChecked.size === matFiltered.length) { matChecked.clear(); } else { matFiltered.forEach(p=>matChecked.add(p.id)); }
   renderMatTable();
 }
+// メールリンク：宛先名を「【会社名】御中」で開く（mailtoの表示名付き形式）
+function mailtoWithName(email, company){
+  if(!company) return 'mailto:'+email;
+  const disp = '【'+company+'】御中';
+  return 'mailto:'+encodeURIComponent('"'+disp+'" <'+email+'>');
+}
+
 function copyText(cell, text) {
   if (!text || text === '—') return;
   navigator.clipboard.writeText(text).then(()=>{
@@ -5250,12 +5400,13 @@ function showSupplierDetail(id){
   const c = DB.companies.find(x=>x.id===id);
   if(!c) return;
   document.getElementById('supd-title').textContent = c.name;
-  const row = (label, val) => val ? `
+  const row = (label, val, extra) => val ? `
     <div onclick="copyText('${escapeHtml(String(val)).replace(/'/g,"\\'")}')"
          style="display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--border);cursor:pointer;"
          title="タップでコピー">
       <div style="min-width:160px;font-size:12px;color:var(--text2);font-weight:600;">${label}</div>
       <div style="flex:1;font-size:15px;font-weight:600;word-break:break-all;line-height:1.6;">${escapeHtml(String(val))}</div>
+      ${extra||''}
       <div style="font-size:16px;color:var(--text3);">📋</div>
     </div>` : '';
   const sec = (title,color) => `<div style="font-size:13px;font-weight:700;color:${color};background:var(--bg3);border-radius:8px;padding:9px 14px;margin:20px 0 6px;">${title}</div>`;
@@ -5265,7 +5416,7 @@ function showSupplierDetail(id){
   const PAYDAY = c.payday ? (c.payday==='99'?'末日払':c.payday+'日払') : '';
 
   const basicRows = row('会社名', c.name)+row('支店・営業所', c.shiten)+row('郵便番号', c.zip)+row('住所', c.address)
-    +row('電話番号', c.tel)+row('FAX番号', c.fax)+row('メール（請求書送付先）', c.email);
+    +row('電話番号', c.tel)+row('FAX番号', c.fax)+row('メール（請求書送付先）', c.email, c.email?('<a href="'+mailtoWithName(c.email, c.name)+'" onclick="event.stopPropagation()" class="btn btn-ghost btn-xs" style="text-decoration:none;white-space:nowrap;">✉ メール</a>'):'');
   const contactRows = (c.contacts&&c.contacts.length)
     ? c.contacts.map(p=>row('👤 '+(p.name||'担当者'), [p.tel,p.email,p.note].filter(Boolean).join(' ／ ')||p.name)).join('')
     : (c.contact?row('👤 担当者', c.contact):'');
@@ -5351,7 +5502,7 @@ function renderSuppliers() {
       <td class="hide-mobile">${(c.types||[]).map(t=>`<span class="badge ${TYPE_BADGE[t]||'badge-yellow'}" style="margin-right:3px;">${TYPE_LABELS[t]||t}</span>`).join('')}</td>
       <td class="hide-mobile">${c.contact||'—'}</td>
       <td class="hide-mobile">${c.tel?`${c.tel}${_copyBtn(c.tel)}`:'—'}</td>
-      <td class="hide-mobile">${c.email?`<a href="mailto:${c.email}" onclick="event.stopPropagation()" style="color:var(--accent);font-size:12px;">${c.email}</a>${_copyBtn(c.email)}`:'—'}</td>
+      <td class="hide-mobile">${c.email?`<a href="${mailtoWithName(c.email, c.name)}" onclick="event.stopPropagation()" style="color:var(--accent);font-size:12px;">${c.email}</a>${_copyBtn(c.email)}`:'—'}</td>
       <td style="white-space:nowrap;" onclick="event.stopPropagation()">
         <button class="btn btn-ghost btn-xs" onclick="showSupplierDetail('${c.id}')">詳細</button> <button class="btn btn-ghost btn-xs" onclick="editSupplier('${c.id}')">編集</button>
         <button class="btn btn-danger btn-xs" onclick="deleteSupplier('${c.id}')">削除</button>
