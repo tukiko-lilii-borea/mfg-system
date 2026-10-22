@@ -1683,6 +1683,7 @@
       <div class="form-group"><label>製品単価（円）</label><input type="number" id="bw-price" placeholder="0"></div>
       <div class="form-group"><label>🚚 納品数（個）*</label><input type="number" id="bw-qty" min="1" placeholder="例：10"></div>
       <div class="form-group"><label>納期（任意）</label><input type="text" id="bw-due" placeholder="例：2026/9/25"></div>
+      <div class="form-group"><label>発注No（任意・相手先の注文書番号）</label><input type="text" id="bw-po" placeholder="例：4500123456"></div>
       <div class="form-group"><label>材料発注先</label><input type="text" id="bw-mat-supplier" list="pf-mat-supplier-list"></div>
       <div class="form-group"><label>材料名</label><input type="text" id="bw-mat-name"></div>
       <div class="form-group"><label>材料寸法</label><input type="text" id="bw-mat-size"></div>
@@ -3192,6 +3193,11 @@ function createWorksheet(id){
             <input type="text" id="ws-due" placeholder="例：11/25" style="width:124px;" onkeydown="if(event.key==='Enter'){event.preventDefault();submitWorksheet();}">
           </div>
         </div>
+        <div style="width:1.5px;align-self:stretch;background:#bfdbfe;"></div>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font-size:12px;font-weight:800;color:var(--text2);">📄 発注No（空欄OK）</span>
+          <input type="text" id="ws-po" placeholder="相手先の注文書番号" style="width:160px;">
+        </div>
       </div>
     </div>`;
 
@@ -3239,6 +3245,7 @@ function createWorksheet(id){
     ySel.innerHTML = opts;
   }
   document.getElementById('ws-due').value = '';
+  document.getElementById('ws-po').value = '';
 
   openModal('worksheet-modal');
   setTimeout(()=>{ const el=document.querySelector('.ws-qty-input'); if(el){ el.focus(); el.select(); } }, 100);
@@ -3276,6 +3283,7 @@ function submitWorksheet(){
   if (_wn !== (p.workerNote||'')) p.workerNote = _wn;
   // 数量別単価テーブルがあれば、納品数に応じた単価を自動適用（例：25個→10〜99の段）
   const _lp = lookupPrice(p.priceTable, prodQty, p.price||0, p.matPrice||0);
+  const _po = (document.getElementById('ws-po')||{value:''}).value.trim();
   const pw = Object.assign({}, p, { price: _lp.price });
   // 材料・単価の上書き（この作業書と実績だけに効く。製品登録は変わらない）
   const _ovr = [...document.querySelectorAll('.ws-m-supplier')].map(el=>{
@@ -3301,12 +3309,12 @@ function submitWorksheet(){
       priceUnit: r.querySelector('.ws-o-unit').value
     };
   }).filter(function(o){ return o.name||o.note||o.price; });
-  const _newRec = saveWorksheetRecord(pw, qtys, prodQty, due, stocks);
+  const _newRec = saveWorksheetRecord(pw, qtys, prodQty, due, stocks, _po);
   closeModal('worksheet-modal');
   closeModal('product-detail-modal');
   refreshAllViews();
   showToast('作業書を作成し、作業実績にも登録しました');
-  printWorksheet(pw, qtys, prodQty, due, _newRec && _newRec.no, stocks);
+  printWorksheet(pw, qtys, prodQty, due, _newRec && _newRec.no, stocks, _po);
 }
 
 // ===== 納期カレンダー（ダッシュボード） =====
@@ -3525,7 +3533,7 @@ function refreshAllViews(){
 }
 
 // 作業書作成時に実績として記録（受注・売上・利益・納期・在庫すべてこの1件で管理）
-function saveWorksheetRecord(p, qtys, prodQty, due, stocksArr){
+function saveWorksheetRecord(p, qtys, prodQty, due, stocksArr, po){
   const mats = _getMatsOf(p);
   const qtyArr = Array.isArray(qtys) ? qtys : [qtys];
   let matCost = 0;
@@ -3545,6 +3553,7 @@ function saveWorksheetRecord(p, qtys, prodQty, due, stocksArr){
     client: p.client||'',
     worker: '',
     qty: prodQty,
+    po: po||'',
     price: p.price||0,
     matPrice: prodQty ? (matCost/prodQty) : 0,
     steps: [],
@@ -3563,7 +3572,7 @@ function saveWorksheetRecord(p, qtys, prodQty, due, stocksArr){
   return prodRec;
 }
 
-function printWorksheet(p, qtys, prodQty, due, mgNo, stocksArr){
+function printWorksheet(p, qtys, prodQty, due, mgNo, stocksArr, po){
   const rec = _latestProduction(p.fignum);
   const steps = (rec && Array.isArray(rec.steps)) ? rec.steps : [];
 
@@ -3742,7 +3751,7 @@ function printWorksheet(p, qtys, prodQty, due, mgNo, stocksArr){
     .b-claim { background:#fef2f2; border-color:#dc2626; color:#991b1b; }
     .claimbox { border:1.5px solid #dc2626; padding:11px; font-size:13px; font-weight:700; line-height:1.8; background:#fef2f2; margin-top:9px; color:#991b1b; }
   </style></head><body>
-    ${mgNo?`<div style="text-align:right;font-size:9.5px;color:#555;margin:0 0 -6px;">管理No：${escapeHtml(String(mgNo))}</div>`:''}
+    ${(mgNo||po)?`<div style="text-align:right;font-size:9.5px;color:#555;margin:0 0 -6px;line-height:1.6;">${mgNo?('管理No：'+escapeHtml(String(mgNo))):''}${(mgNo&&po)?'<br>':''}${po?('発注No：'+escapeHtml(String(po))):''}</div>`:''}
     <h1>作 業 書</h1>
 
     <table class="head">
@@ -4291,7 +4300,7 @@ function filterProduction(q) {
   q = (q||'').toLowerCase();
   const machine = document.getElementById('prod-machine-filter').value;
   const prods = DB.productions.filter(p=>p.date.startsWith(prodCurrentYear))
-    .filter(p=>(!q || p.machine.toLowerCase().includes(q) || p.fignum.toLowerCase().includes(q) || (p.name||'').toLowerCase().includes(q) || (p.client||'').toLowerCase().includes(q) || String(p.no||'').toLowerCase().includes(q)) && (!machine || p.machine===machine))
+    .filter(p=>(!q || p.machine.toLowerCase().includes(q) || p.fignum.toLowerCase().includes(q) || (p.name||'').toLowerCase().includes(q) || (p.client||'').toLowerCase().includes(q) || String(p.no||'').toLowerCase().includes(q) || String(p.po||'').toLowerCase().includes(q)) && (!machine || p.machine===machine))
     .sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0) || b.date.localeCompare(a.date));
 
   // サマリー（表示中の年・絞り込み後）
@@ -4397,6 +4406,7 @@ function showProdDetail(id) {
       ${card(blue,'納期', p.due||'—')}
       ${card(blue,'図番', p.fignum||'—')}
       ${card(blue,'品名', p.name||'—')}
+      ${p.po?card(blue,'発注No', escapeHtml(p.po)):''}
       ${card(blue,'受注先', p.client||'—')}
       ${card(blue,'機械', p.machine||'—')}
       ${card(blue,'作業員', p.worker||'—')}
@@ -4509,7 +4519,7 @@ function reprintWorksheet(recordId){
     outsource: (r.outsourceInfo||[]).map(o=>({ name:o.name||'', note:o.note||'', price:o.price||0, priceUnit:o.priceUnit||'per' }))
   };
   const qtys = mats.length ? mats.map(m=>m.qty||0) : [r.qty||0];
-  printWorksheet(pseudo, qtys, r.qty||0, r.due||'', r.no, (r.materials||[]).map(m=>!!(m&&m.stock)));
+  printWorksheet(pseudo, qtys, r.qty||0, r.due||'', r.no, (r.materials||[]).map(m=>!!(m&&m.stock)), r.po||'');
 }
 
 function deleteProd(id) {
@@ -4851,7 +4861,7 @@ function saveProduction() {
       _hAction = 'edit';
       // 作業書由来の情報（納期・出荷状態・材料明細・外注費）は編集後も引き継ぐ
       const keep = DB.productions[idx];
-      ['fromWorksheet','due','shipped','osCost','materials','outsourceInfo'].forEach(k=>{
+      ['fromWorksheet','due','shipped','osCost','materials','outsourceInfo','no','po'].forEach(k=>{
         if (keep[k] !== undefined && p[k] === undefined) p[k] = keep[k];
       });
       DB.productions[idx] = p;
@@ -5337,11 +5347,12 @@ function submitBlankWorksheet(){
   const hasMat = (matSup||matName||matPrice||matQty);
   const qtys = hasMat ? [matQty] : [0];
   const due = document.getElementById('bw-due').value.trim();
-  const _newRec = saveWorksheetRecord(pseudo, qtys, qty, due);
+  const _bwPo = (document.getElementById('bw-po')||{value:''}).value.trim();
+  const _newRec = saveWorksheetRecord(pseudo, qtys, qty, due, null, _bwPo);
   closeModal('blank-ws-modal');
   refreshAllViews();
   showToast('作業書を作成し、作業実績にも登録しました');
-  printWorksheet(pseudo, qtys, qty, due, _newRec && _newRec.no);
+  printWorksheet(pseudo, qtys, qty, due, _newRec && _newRec.no, null, _bwPo);
 }
 
 // ===== 会社統合 =====
