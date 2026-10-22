@@ -3124,7 +3124,7 @@ function createWorksheet(id){
   const p = DB.products.find(x=>x.id===id);
   if(!p){ showToast('製品が見つかりません','error'); return; }
   window._wsProductId = id;
-  document.getElementById('ws-worker-note').value = p.workerNote || '';
+  document.getElementById('ws-worker-note').value = ''; // メモは毎回まっさら（前回分を引き継がない）
 
   // ===== 最上段：受注先・品番・品名＋単価欄 =====
   document.getElementById('ws-info').innerHTML = `
@@ -3278,13 +3278,12 @@ function submitWorksheet(){
     else if(parts.length===2) due = `${dueYear}/${parts[0]}/${parts[1]}`;
     else due = dueRaw;
   }
-  // 作業員メモ：ここで書いた内容を製品マスタにも保存（次回から反映）
+  // 作業員メモ：この作業書だけに印刷（製品マスタには保存しない＝次回は空）
   const _wn = document.getElementById('ws-worker-note').value.trim();
-  if (_wn !== (p.workerNote||'')) p.workerNote = _wn;
   // 数量別単価テーブルがあれば、納品数に応じた単価を自動適用（例：25個→10〜99の段）
   const _lp = lookupPrice(p.priceTable, prodQty, p.price||0, p.matPrice||0);
   const _po = (document.getElementById('ws-po')||{value:''}).value.trim();
-  const pw = Object.assign({}, p, { price: _lp.price });
+  const pw = Object.assign({}, p, { price: _lp.price, workerNote: _wn });
   // 材料・単価の上書き（この作業書と実績だけに効く。製品登録は変わらない）
   const _ovr = [...document.querySelectorAll('.ws-m-supplier')].map(el=>{
     const ix = el.dataset.idx;
@@ -3751,7 +3750,7 @@ function printWorksheet(p, qtys, prodQty, due, mgNo, stocksArr, po){
     .b-claim { background:#fef2f2; border-color:#dc2626; color:#991b1b; }
     .claimbox { border:1.5px solid #dc2626; padding:11px; font-size:13px; font-weight:700; line-height:1.8; background:#fef2f2; margin-top:9px; color:#991b1b; }
   </style></head><body>
-    ${(mgNo||po)?`<div style="text-align:right;font-size:9.5px;color:#555;margin:0 0 -6px;line-height:1.6;">${mgNo?('管理No：'+escapeHtml(String(mgNo))):''}${(mgNo&&po)?'<br>':''}${po?('発注No：'+escapeHtml(String(po))):''}</div>`:''}
+    ${(mgNo||po)?`<div style="text-align:right;font-size:9.5px;color:#555;margin:0 0 -6px;line-height:1.6;padding-right:18mm;">${mgNo?('管理No：'+escapeHtml(String(mgNo))):''}${(mgNo&&po)?'<br>':''}${po?('発注No：'+escapeHtml(String(po))):''}</div>`:''}
     <h1>作 業 書</h1>
 
     <table class="head">
