@@ -91,6 +91,24 @@
 
   /* Forms */
   .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    /* ===== コンパクト登録フォーム（実績登録・製品登録） ===== */
+    #sec-production-form input, #sec-production-form select, #sec-production-form textarea,
+    #sec-product-form input, #sec-product-form select, #sec-product-form textarea {
+      padding: 7px 10px; font-size: 15.5px; border-radius: 7px; background: #fff;
+    }
+    #sec-production-form .form-group label, #sec-product-form .form-group label,
+    .cf-lbl { font-size: 12.5px; font-weight: 700; color: var(--text2); }
+    #sec-production-form .form-group, #sec-product-form .form-group { gap: 3px; }
+    .cf-sec { border-radius: 10px; border: 1px solid var(--border); padding: 12px 14px 13px; margin-bottom: 12px; }
+    .cf-t { font-size: 14px; font-weight: 800; margin-bottom: 9px; }
+    .cf-blue { background: #eff6ff; border-left: 4px solid #2563eb; }
+    .cf-blue .cf-t { color: #1e40af; }
+    .cf-purple { background: #fdf4ff; border-left: 4px solid #a21caf; }
+    .cf-purple .cf-t { color: #86198f; }
+    .cf-num { text-align: right; font-weight: 700; }
+    .cf-auto { background: #f1f5f9 !important; color: #475569; }
+    .rm-price, .rm-qty { text-align: right; font-weight: 700; }
+    @media (max-width: 760px) { .cf-g { grid-template-columns: 1fr 1fr !important; } }
   .form-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
   .form-group { display: flex; flex-direction: column; gap: 6px; }
   .form-group.full { grid-column: 1 / -1; }
@@ -924,28 +942,29 @@
         <button class="btn btn-ghost btn-sm" onclick="showSection('products')">← 一覧へ</button>
       </div>
       <div class="card">
-        <div style="margin-bottom:16px;padding:8px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:13px;font-weight:700;color:#1e40af;">📋 基本情報</div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>図番</label>
-            <input type="text" id="pf-fignum" placeholder="例：DWG-001（なくてもOK）">
-          </div>
-          <div class="form-group">
-            <label>品名 *</label>
-            <input type="text" id="pf-name" placeholder="例：シャフトA">
-          </div>
-          <div class="form-group">
-            <label>受注先</label>
-            <input type="text" id="pf-client" list="pf-client-list" placeholder="取引先を選択or入力">
-            <datalist id="pf-client-list"></datalist>
-          </div>
-          <div class="form-group">
-            <label>製品単価（基本・円）</label>
-            <input type="number" id="pf-price" placeholder="数量別テーブルがない場合の単価">
+        <div class="cf-sec cf-blue">
+          <div class="cf-t">📋 基本情報</div>
+          <div class="cf-g" style="display:grid;grid-template-columns:1fr 1.3fr 1fr 150px;gap:10px;">
+            <div class="form-group">
+              <label>図番</label>
+              <input type="text" id="pf-fignum" placeholder="例：DWG-001（なくてもOK）">
+            </div>
+            <div class="form-group">
+              <label>品名 *</label>
+              <input type="text" id="pf-name" placeholder="例：シャフトA">
+            </div>
+            <div class="form-group">
+              <label>受注先</label>
+              <input type="text" id="pf-client" list="pf-client-list" placeholder="取引先を選択or入力">
+              <datalist id="pf-client-list"></datalist>
+            </div>
+            <div class="form-group">
+              <label>製品単価（基本・円）</label>
+              <input type="number" id="pf-price" class="cf-num" placeholder="0">
+            </div>
           </div>
         </div>
 
-        <hr class="divider">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <div style="font-size:13px;font-weight:700;color:var(--accent);">📊 数量別単価テーブル</div>
           <button type="button" class="btn btn-ghost btn-sm" onclick="addPriceRow()">＋ 行追加</button>
@@ -955,9 +974,9 @@
           <table style="width:100%;font-size:13px;" id="price-table">
             <thead>
               <tr>
-                <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">数量（個〜）</th>
-                <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">製品単価（円）</th>
-                <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">材料単価（円）</th>
+                <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;width:130px;">数量（個〜）</th>
+                <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;width:150px;">製品単価（円）</th>
+                <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;width:150px;">材料単価（円）</th>
                 <th style="background:var(--bg3);color:var(--text2);padding:8px 10px;text-align:center;border-bottom:1px solid var(--border);font-size:11px;width:50px;"></th>
               </tr>
             </thead>
@@ -977,11 +996,11 @@
         <div style="overflow-x:auto;">
           <table style="width:100%;font-size:13px;">
             <thead><tr>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">材料発注先</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">材料名</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">寸法</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">材料単価（円）</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;width:44px;text-align:center;"></th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">材料発注先</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">材料名</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">寸法</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;width:150px;">材料単価（円）</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;width:44px;text-align:center;"></th>
             </tr></thead>
             <tbody id="material-rows"></tbody>
           </table>
@@ -996,11 +1015,11 @@
         <div style="overflow-x:auto;">
           <table style="width:100%;font-size:13px;">
             <thead><tr>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">外注先名</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">材料</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">加工内容（備考）</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">金額（円）<span style="font-weight:400;font-size:12px;color:var(--text2);">※1個あたり／1式を選択</span></th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;width:44px;text-align:center;"></th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">外注先名</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">材料</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">加工内容（備考）</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">金額（円）<span style="font-weight:400;font-size:12px;color:var(--text2);">※1個あたり／1式を選択</span></th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;width:44px;text-align:center;"></th>
             </tr></thead>
             <tbody id="outsource-rows"></tbody>
           </table>
@@ -1115,57 +1134,71 @@
         <button class="btn btn-ghost btn-sm" onclick="showSection('production')">← 一覧へ</button>
       </div>
       <div class="card">
-        <div class="form-grid">
-          <div class="form-group">
-            <label>加工日 *</label>
-            <input type="date" id="rf-date">
+        <div class="cf-sec cf-blue">
+          <div class="cf-t">📋 基本情報</div>
+          <div class="cf-g" style="display:grid;grid-template-columns:150px 150px 1fr 170px;gap:10px;">
+            <div class="form-group">
+              <label>加工日 *</label>
+              <input type="date" id="rf-date">
+            </div>
+            <div class="form-group">
+              <label>機械名 *</label>
+              <input type="text" id="rf-machine" list="machine-list" placeholder="機械A">
+              <datalist id="machine-list"></datalist>
+            </div>
+            <div class="form-group">
+              <label>図番 *</label>
+              <input type="text" id="rf-fignum" list="fignum-list" placeholder="例：DWG-001" oninput="autoFillProduct()" autocomplete="off">
+              <datalist id="fignum-list"></datalist>
+            </div>
+            <div class="form-group">
+              <label>作業員</label>
+              <select id="rf-worker">
+                <option value="">選択（任意）</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label>機械名 *</label>
-            <input type="text" id="rf-machine" list="machine-list" placeholder="例：機械A">
-            <datalist id="machine-list"></datalist>
-          </div>
-          <div class="form-group">
-            <label>図番 *</label>
-            <input type="text" id="rf-fignum" list="fignum-list" placeholder="例：DWG-001" oninput="autoFillProduct()" autocomplete="off">
-            <datalist id="fignum-list"></datalist>
-          </div>
-          <div class="form-group">
-            <label>品名（自動入力）</label>
-            <input type="text" id="rf-name" placeholder="図番から自動入力">
-          </div>
-          <div class="form-group">
-            <label>受注先（自動入力）</label>
-            <input type="text" id="rf-client" list="rf-client-list" placeholder="図番から自動入力 or 候補から選択">
-            <datalist id="rf-client-list"></datalist>
-          </div>
-          <div class="form-group">
-            <label>作業員</label>
-            <select id="rf-worker">
-              <option value="">選択してください</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>数量</label>
-            <input type="number" id="rf-qty" value="" min="1" placeholder="数量を入力" oninput="autoFillProduct()">
-          </div>
-          <div class="form-group">
-            <label>製品単価（円）</label>
-            <input type="number" id="rf-price" placeholder="0">
-            <div id="rf-price-hint" style="font-size:11px;color:var(--accent2);margin-top:3px;display:none;"></div>
-          </div>
-          <div class="form-group">
-            <label>材料単価（円）<span style="font-weight:400;font-size:11px;color:var(--text2);">※明細入力時は自動計算</span></label>
-            <input type="number" id="rf-mat-price" placeholder="0">
-            <div id="rf-mat-price-hint" style="font-size:11px;color:var(--accent2);margin-top:3px;display:none;"></div>
-          </div>
-          <div class="form-group">
-            <label>納期</label>
-            <input type="text" id="rf-due" placeholder="例：2026/9/7">
+          <div class="cf-g" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;">
+            <div class="form-group">
+              <label>品名（自動入力）</label>
+              <input type="text" id="rf-name" class="cf-auto" placeholder="図番から自動入力">
+            </div>
+            <div class="form-group">
+              <label>受注先（自動入力）</label>
+              <input type="text" id="rf-client" class="cf-auto" list="rf-client-list" placeholder="図番から自動入力 or 候補から選択">
+              <datalist id="rf-client-list"></datalist>
+            </div>
           </div>
         </div>
 
-        <hr class="divider">
+        <div class="cf-sec cf-purple">
+          <div class="cf-t">💴 数量・単価・納期</div>
+          <div class="cf-g" style="display:grid;grid-template-columns:100px 130px 130px 150px 1fr;gap:10px;">
+            <div class="form-group">
+              <label>数量 *</label>
+              <input type="number" id="rf-qty" class="cf-num" value="" min="1" placeholder="0" oninput="autoFillProduct()">
+            </div>
+            <div class="form-group">
+              <label>製品単価（円）</label>
+              <input type="number" id="rf-price" class="cf-num" placeholder="0">
+              <div id="rf-price-hint" style="font-size:11px;color:var(--accent2);margin-top:3px;display:none;"></div>
+            </div>
+            <div class="form-group">
+              <label>材料単価（円）<span style="font-weight:400;font-size:10.5px;">※明細で自動</span></label>
+              <input type="number" id="rf-mat-price" class="cf-num" placeholder="0">
+              <div id="rf-mat-price-hint" style="font-size:11px;color:var(--accent2);margin-top:3px;display:none;"></div>
+            </div>
+            <div class="form-group">
+              <label>納期</label>
+              <input type="text" id="rf-due" placeholder="例：2026/9/7">
+            </div>
+            <div class="form-group">
+              <label>発注No（任意）</label>
+              <input type="text" id="rf-po" placeholder="相手先の注文書番号">
+            </div>
+          </div>
+        </div>
+
         <div style="margin-bottom:12px;padding:8px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:13px;font-weight:700;color:#166534;display:flex;justify-content:space-between;align-items:center;">
           <span>🪨 材料明細（発注先・単価・発注数）</span>
           <button type="button" class="btn btn-ghost btn-sm" onclick="addRecMaterialRow()" style="color:#166534;border:1px solid #bbf7d0;background:#fff;">＋ 行追加</button>
@@ -1173,12 +1206,12 @@
         <div style="overflow-x:auto;margin-bottom:16px;">
           <table style="width:100%;font-size:13px;">
             <thead><tr>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">材料発注先</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">材料名</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">寸法</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">単価（円）</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">発注数（ヶ）</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;width:44px;text-align:center;"></th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">材料発注先</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">材料名</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">寸法</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;width:130px;">単価（円）</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;width:110px;">発注数（ヶ）</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;width:44px;text-align:center;"></th>
             </tr></thead>
             <tbody id="rec-material-rows"></tbody>
           </table>
@@ -1191,10 +1224,10 @@
         <div style="overflow-x:auto;margin-bottom:16px;">
           <table style="width:100%;font-size:13px;">
             <thead><tr>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">外注先名</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">加工内容</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;">金額（円）</th>
-              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:15px;font-weight:600;white-space:nowrap;width:44px;text-align:center;"></th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">外注先名</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">加工内容</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;">金額（円）</th>
+              <th style="background:transparent;color:var(--text2);padding:4px 10px 6px;text-align:left;border-bottom:none;font-size:12.5px;font-weight:700;white-space:nowrap;width:44px;text-align:center;"></th>
             </tr></thead>
             <tbody id="rec-outsource-rows"></tbody>
           </table>
@@ -4596,6 +4629,7 @@ function editProduction(id) {
     document.getElementById('rf-mat-price').value = p.matPrice || '';
     document.getElementById('rf-worker').value = p.worker || '';
     document.getElementById('rf-due').value = p.due || '';
+    document.getElementById('rf-po').value = p.po || '';
     document.getElementById('rec-material-rows').innerHTML = '';
     (p.materials||[]).forEach(m=>addRecMaterialRow(m));
     document.getElementById('rec-outsource-rows').innerHTML = '';
@@ -4790,6 +4824,7 @@ function copyLastSteps() {
 function clearProductionForm() {
   window._editingProdId = null;
   document.getElementById('rf-due').value = '';
+  document.getElementById('rf-po').value = '';
   document.getElementById('rec-material-rows').innerHTML = '';
   document.getElementById('rec-outsource-rows').innerHTML = '';
   document.getElementById('rf-fignum').value = '';
@@ -4846,6 +4881,7 @@ function saveProduction() {
     matPrice: _matPrice,
     steps,
     due: document.getElementById('rf-due').value.trim(),
+    po: document.getElementById('rf-po').value.trim(),
     materials: _mats,
     outsourceInfo: _os,
     osCost: _osCost,
