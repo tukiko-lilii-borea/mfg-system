@@ -474,6 +474,9 @@
         <div class="nav-item" onclick="showSection('profit')">
           <span class="nav-icon">📈</span>利益レポート
         </div>
+        <div class="nav-item" onclick="showSection('report')">
+          <span class="nav-icon">📊</span>経営レポート
+        </div>
       </div>
       <div class="nav-group">
         <div class="nav-label">見積</div>
@@ -1285,6 +1288,28 @@
           <label>ひとこと（空欄OK・挨拶文の下に印刷）</label>
           <input type="text" id="cl-note" placeholder="例：今月分の請求書をお送りします">
         </div>
+      </div>
+    </section>
+
+    <!-- ===== 経営レポート ===== -->
+    <section class="section" id="sec-report">
+      <div class="page-header">
+        <div><div class="page-title">📊 経営レポート</div><div class="page-subtitle">コンサル・銀行向けの月次／年次サマリー（PDF・Excel出力対応）</div></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="repCsv()">📥 Excel用CSV</button>
+          <button class="btn btn-primary btn-sm" onclick="repPrint()">🖨 PDF / 印刷</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <div class="tabs" style="margin:0;">
+          <div class="tab active" id="rep-tab-m" onclick="repMode('m')">📅 月次</div>
+          <div class="tab" id="rep-tab-y" onclick="repMode('y')">🗓 年次（決算期）</div>
+        </div>
+        <select id="rep-month" onchange="renderReport()" style="width:150px;font-weight:700;"></select>
+        <select id="rep-fy" onchange="renderReport()" style="width:190px;font-weight:700;display:none;"></select>
+      </div>
+      <div class="card" style="max-width:860px;">
+        <div id="rep-body"></div>
       </div>
     </section>
 
@@ -2364,6 +2389,7 @@ function showSection(name, _isBack) {
   if (name === 'sales-fiscal') renderSalesFiscal();
   if (name === 'mat-check') renderMatCheck();
   if (name === 'coverletter') initCoverLetter();
+  if (name === 'report') initReport();
   if (name === 'dashboard') renderDueCalendar();
   if (name === 'dashboard') renderMemoBoard();
   if (name === 'products') renderProducts();
@@ -2584,6 +2610,267 @@ function printCoverLetter(){
   const w=window.open('','_blank');
   if(!w){ showToast('ポップアップがブロックされました','error'); return; }
   w.document.write(html); w.document.close();
+}
+
+// ===== 経営レポート =====
+let _repM='m', _repYM=null, _repFY=null;
+function _repSecs(r){ return stepsToSeconds(r.steps); }
+function _repHM(sec){ const h=Math.floor(sec/3600), m=Math.round((sec%3600)/60); return h+':'+String(m).padStart(2,'0'); }
+function _repRecsOfMonth(y,m){ return (DB.productions||[]).filter(function(r){ const ym=_salesYM(r); return ym && ym.y===y && ym.m===m; }); }
+function _repRecsOfFY(fy){ const fm=DB.company.fiscalMonth||12; return (DB.productions||[]).filter(function(r){ const ym=_salesYM(r); return ym && _fiscalYearOf(ym,fm)===fy; }); }
+function _repAgg(recs){
+  const a={sales:0,cost:0,cnt:recs.length,qty:0,secs:0,machines:{},clients:{},products:{},machSet:new Set()};
+  recs.forEach(function(r){
+    const s=_recSales(r), c=_recCost(r), sec=_repSecs(r);
+    a.sales+=s; a.cost+=c; a.qty+=(r.qty||0); a.secs+=sec;
+    const mk=r.machine||'未記入';
+    if(r.machine) a.machSet.add(r.machine);
+    (a.machines[mk]=a.machines[mk]||{secs:0,sales:0,products:{}});
+    a.machines[mk].secs+=sec; a.machines[mk].sales+=s;
+    const pk=(r.fignum||'')+'\t'+(r.name||'');
+    (a.machines[mk].products[pk]=a.machines[mk].products[pk]||{cnt:0,qty:0,secs:0});
+    a.machines[mk].products[pk].cnt++; a.machines[mk].products[pk].qty+=(r.qty||0); a.machines[mk].products[pk].secs+=sec;
+    const ck=r.client||'（受注先なし）';
+    (a.clients[ck]=a.clients[ck]||{sales:0,cnt:0}); a.clients[ck].sales+=s; a.clients[ck].cnt++;
+    (a.products[pk]=a.products[pk]||{client:r.client||'',cnt:0,qty:0,secs:0,sales:0,cost:0});
+    const P=a.products[pk]; P.cnt++; P.qty+=(r.qty||0); P.secs+=sec; P.sales+=s; P.cost+=c;
+  });
+  return a;
+}
+function initReport(){
+  const now=new Date();
+  if(!_repYM){ _repYM=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0'); }
+  // 月プルダウン（実績がある売上月＋今月、新しい順）
+  const ms=new Set(); ms.add(_repYM);
+  (DB.productions||[]).forEach(function(r){ const ym=_salesYM(r); if(ym) ms.add(ym.y+'-'+String(ym.m).padStart(2,'0')); });
+  const list=[...ms].sort().reverse();
+  document.getElementById('rep-month').innerHTML=list.map(function(k){ const p=k.split('-'); return '<option value="'+k+'"'+(k===_repYM?' selected':'')+'>'+parseInt(p[0],10)+'年'+parseInt(p[1],10)+'月</option>'; }).join('');
+  // 期プルダウン
+  const fm=DB.company.fiscalMonth||12, f1=DB.company.firstFiscalYear;
+  const fys=new Set();
+  (DB.productions||[]).forEach(function(r){ const ym=_salesYM(r); if(ym) fys.add(_fiscalYearOf(ym,fm)); });
+  if(!fys.size) fys.add(now.getFullYear());
+  const fl=[...fys].sort().reverse();
+  if(!_repFY) _repFY=fl[0];
+  document.getElementById('rep-fy').innerHTML=fl.map(function(y){ const nm=f1?('第'+(y-f1+1)+'期'):(y+'年期'); return '<option value="'+y+'"'+(y===_repFY?' selected':'')+'>'+nm+'（〜'+y+'/'+fm+'月）</option>'; }).join('');
+  renderReport();
+}
+function repMode(m){
+  _repM=m;
+  document.getElementById('rep-tab-m').classList.toggle('active',m==='m');
+  document.getElementById('rep-tab-y').classList.toggle('active',m==='y');
+  document.getElementById('rep-month').style.display = m==='m'?'':'none';
+  document.getElementById('rep-fy').style.display = m==='y'?'':'none';
+  renderReport();
+}
+function _repParams(){
+  const fm=DB.company.fiscalMonth||12, f1=DB.company.firstFiscalYear;
+  if(_repM==='m'){
+    _repYM=document.getElementById('rep-month').value||_repYM;
+    const p=_repYM.split('-'), y=parseInt(p[0],10), m=parseInt(p[1],10);
+    const py=m===1?y-1:y, pm=m===1?12:m-1;
+    const fy=_fiscalYearOf({y:y,m:m},fm);
+    const kn=f1?('第'+(fy-f1+1)+'期'):'';
+    let kmth='';
+    if(kn){ let d=(m-fm+12)%12; if(d===0) d=12; kmth=kn+'・'+d+'ヶ月目'; }
+    return { title:y+'年'+m+'月', sub:kmth, recs:_repRecsOfMonth(y,m), prev:_repRecsOfMonth(py,pm), prevLabel:'前月比',
+      period:y+'/'+m+'/1 〜 '+m+'月末', trend:(function(){ const t=[]; let ty=y, tm=m; for(let i=0;i<6;i++){ t.unshift({y:ty,m:tm}); tm--; if(tm<1){tm=12;ty--;} } return t; })() };
+  }else{
+    _repFY=parseInt(document.getElementById('rep-fy').value,10)||_repFY;
+    const fy=_repFY, kn=f1?('第'+(fy-f1+1)+'期'):(fy+'年期');
+    const sm=fm+1>12?1:fm+1, sy=fy-1;
+    const t=[]; let ty=sy, tm=sm;
+    for(let i=0;i<12;i++){ t.push({y:ty,m:tm}); tm++; if(tm>12){tm=1;ty++;} }
+    return { title:kn, sub:sy+'年'+sm+'月 〜 '+fy+'年'+fm+'月（'+fm+'月決算）', recs:_repRecsOfFY(fy), prev:_repRecsOfFY(fy-1), prevLabel:'前期比',
+      period:sy+'/'+sm+' 〜 '+fy+'/'+fm, trend:t };
+  }
+}
+function _repBuildHtml(forPrint){
+  const P=_repParams();
+  const a=_repAgg(P.recs), pv=_repAgg(P.prev);
+  const mc=(DB.myCompanies&&DB.myCompanies[0])||DB.company||{};
+  const n=new Date();
+  const gr=a.sales-a.cost, grR=a.sales?(gr/a.sales*100):0;
+  const delta = pv.sales ? ((a.sales-pv.sales)/pv.sales*100) : null;
+  const dHtml = delta===null?'<span style="color:#8a8984;">—</span>':(delta>=0?'<span style="color:#166534;">▲ +'+delta.toFixed(1)+'%</span>':'<span style="color:#b91c1c;">▼ '+delta.toFixed(1)+'%</span>');
+  // 機械別（時間降順）
+  const mkeys=Object.keys(a.machines).sort(function(x,y){ return a.machines[y].secs-a.machines[x].secs; });
+  const maxSec=Math.max.apply(null, mkeys.map(function(k){return a.machines[k].secs;}).concat([1]));
+  const machRows=mkeys.map(function(k){
+    const m=a.machines[k];
+    return '<div class="rp-hrow"><div class="rp-nm">'+escapeHtml(k)+'</div><div class="rp-track"><div class="rp-fill" style="width:'+Math.max(m.secs/maxSec*100,1.5)+'%;"></div></div><div class="rp-vals">'+_repHM(m.secs)+' <small>｜¥'+fmt(m.sales)+'</small></div></div>';
+  }).join('');
+  // 機械別×製品（上位2＋その他）
+  let mpRows='';
+  mkeys.forEach(function(k){
+    const m=a.machines[k];
+    const pks=Object.keys(m.products).sort(function(x,y){ return m.products[y].secs-m.products[x].secs; });
+    const top=pks.slice(0,2), rest=pks.slice(2);
+    const rows=[];
+    top.forEach(function(pk){
+      const p=m.products[pk], nm=pk.split('\t');
+      rows.push({label:(nm[0]?nm[0]+'　':'')+nm[1], cnt:p.cnt, qty:p.qty, secs:p.secs});
+    });
+    if(rest.length){
+      let rc=0,rq=0,rs=0; rest.forEach(function(pk){ const p=m.products[pk]; rc+=p.cnt; rq+=p.qty; rs+=p.secs; });
+      rows.push({label:'その他 '+rest.length+'製品', cnt:rc, qty:rq, secs:rs, gray:true});
+    }
+    rows.forEach(function(r,i){
+      mpRows+='<tr'+(i===rows.length-1?' style="border-bottom:1.5px solid #52514e;"':'')+'>'
+        +(i===0?('<td class="rp-td rp-bold" rowspan="'+rows.length+'" style="vertical-align:top;">'+escapeHtml(k)+'<br><small style="color:#8a8984;font-weight:600;">'+_repHM(m.secs)+'</small></td>'):'')
+        +'<td class="rp-td"'+(r.gray?' style="color:#8a8984;"':'')+'>'+escapeHtml(r.label)+'</td>'
+        +'<td class="rp-td rp-r">'+r.cnt+'件</td><td class="rp-td rp-r">'+fmt(r.qty)+'個</td><td class="rp-td rp-r">'+_repHM(r.secs)+'</td>'
+        +'<td class="rp-td rp-r">'+(m.secs?Math.round(r.secs/m.secs*100):0)+'%</td></tr>';
+    });
+  });
+  // 会社別（上位4＋その他）
+  const ckeys=Object.keys(a.clients).sort(function(x,y){ return a.clients[y].sales-a.clients[x].sales; });
+  const cmax=Math.max.apply(null, ckeys.map(function(k){return a.clients[k].sales;}).concat([1]));
+  let cliRows='';
+  ckeys.slice(0,4).forEach(function(k){
+    const c=a.clients[k];
+    cliRows+='<div class="rp-hrow rp-cli"><div class="rp-nm">'+escapeHtml(k)+'</div><div class="rp-track"><div class="rp-fill" style="width:'+Math.max(c.sales/cmax*100,1.5)+'%;"></div></div><div class="rp-vals">¥'+fmt(c.sales)+' <small>'+(a.sales?Math.round(c.sales/a.sales*100):0)+'%</small></div></div>';
+  });
+  if(ckeys.length>4){
+    let os=0; ckeys.slice(4).forEach(function(k){ os+=a.clients[k].sales; });
+    cliRows+='<div class="rp-hrow rp-cli"><div class="rp-nm">その他'+(ckeys.length-4)+'社</div><div class="rp-track"><div class="rp-fill" style="width:'+Math.max(os/cmax*100,1.5)+'%;background:#d7d5d0;"></div></div><div class="rp-vals">¥'+fmt(os)+' <small>'+(a.sales?Math.round(os/a.sales*100):0)+'%</small></div></div>';
+  }
+  // 推移
+  const tAgg=P.trend.map(function(t){ const rr=_repRecsOfMonth(t.y,t.m); let s=0; rr.forEach(function(r){ s+=_recSales(r); }); return {m:t.m, y:t.y, s:s}; });
+  const tMax=Math.max.apply(null, tAgg.map(function(t){return t.s;}).concat([1]));
+  const curKey=_repM==='m'?_repYM:null;
+  const trendCols=tAgg.map(function(t,i){
+    const isCur = _repM==='m' ? (t.y+'-'+String(t.m).padStart(2,'0'))===_repYM : i===tAgg.length-1;
+    return '<div class="rp-tcol'+(isCur?' rp-cur':'')+'"><div class="rp-tv">'+(t.s?(t.s/1000000).toFixed(1):'0')+'</div><div class="rp-b" style="height:'+Math.max(t.s/tMax*100,2)+'%;"></div><div class="rp-tm">'+t.m+'月</div></div>';
+  }).join('');
+  // 製品別TOP
+  const topN=_repM==='m'?5:10;
+  const pkeys=Object.keys(a.products).sort(function(x,y){ return a.products[y].sales-a.products[x].sales; });
+  let prodRows='';
+  pkeys.slice(0,topN).forEach(function(pk){
+    const p=a.products[pk], nm=pk.split('\t'), g=p.sales-p.cost;
+    prodRows+='<tr><td class="rp-td rp-bold">'+escapeHtml(nm[0]||'—')+'</td><td class="rp-td">'+escapeHtml(nm[1])+'</td><td class="rp-td">'+escapeHtml(p.client||'—')+'</td>'
+      +'<td class="rp-td rp-r">'+fmt(p.qty)+'個</td><td class="rp-td rp-r">'+_repHM(p.secs)+'</td><td class="rp-td rp-r">¥'+fmt(p.sales)+'</td><td class="rp-td rp-r">¥'+fmt(g)+'</td><td class="rp-td rp-r">'+(p.sales?(g/p.sales*100).toFixed(1):'0.0')+'%</td></tr>';
+  });
+  const css = '<style>'
+    +'.rp-root{font-family:"Yu Gothic","Meiryo",sans-serif;color:#0b0b0b;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
+    +'.rp-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #0b0b0b;padding-bottom:9px;margin-bottom:12px;}'
+    +'.rp-title{font-size:21px;font-weight:800;letter-spacing:2px;}'
+    +'.rp-month{font-size:14px;font-weight:700;color:#2a78d6;margin-top:2px;}'
+    +'.rp-meta{text-align:right;font-size:10.5px;color:#52514e;line-height:1.7;}'
+    +'.rp-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:10px;}'
+    +'.rp-tile{border:1.5px solid #e5e3de;border-radius:10px;padding:10px 13px;}'
+    +'.rp-klbl{font-size:10.5px;font-weight:700;color:#52514e;margin-bottom:3px;}'
+    +'.rp-kval{font-size:21px;font-weight:800;}'
+    +'.rp-ksub{font-size:10.5px;color:#8a8984;margin-top:2px;}'
+    +'.rp-sect{font-size:13px;font-weight:800;border-left:4px solid #2a78d6;padding-left:8px;margin:11px 0 7px;}'
+    +'.rp-hrow{display:grid;grid-template-columns:64px 1fr 118px;gap:8px;align-items:center;margin-bottom:4px;font-size:11px;}'
+    +'.rp-hrow.rp-cli{grid-template-columns:88px 1fr 96px;}'
+    +'.rp-nm{font-weight:700;color:#52514e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+    +'.rp-track{height:13px;border-radius:3px;background:#f1efe9;}'
+    +'.rp-fill{height:100%;border-radius:3px 4px 4px 3px;background:#2a78d6;}'
+    +'.rp-vals{text-align:right;font-weight:700;white-space:nowrap;font-size:11px;}'
+    +'.rp-vals small{font-weight:600;color:#8a8984;font-size:10px;}'
+    +'.rp-tbl{width:100%;border-collapse:collapse;font-size:11px;}'
+    +'.rp-tbl th{font-size:10px;font-weight:700;color:#52514e;text-align:left;border-bottom:1.5px solid #0b0b0b;padding:4px 6px;white-space:nowrap;background:transparent;}'
+    +'.rp-tbl th.rp-r{text-align:right;}'
+    +'.rp-td{border-bottom:1px solid #e5e3de;padding:4.5px 6px;}'
+    +'.rp-r{text-align:right;}.rp-bold{font-weight:700;}'
+    +'.rp-duo{display:grid;grid-template-columns:1fr 1fr;gap:16px;}'
+    +'.rp-trend{display:grid;grid-template-columns:repeat('+tAgg.length+',1fr);gap:'+(tAgg.length>6?6:10)+'px;align-items:end;height:80px;margin:6px 4px 0;}'
+    +'.rp-tcol{display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;}'
+    +'.rp-b{width:70%;background:#d7d5d0;border-radius:3px 3px 0 0;}'
+    +'.rp-cur .rp-b{background:#2a78d6;}'
+    +'.rp-tv{font-size:9.5px;font-weight:700;color:#8a8984;}'
+    +'.rp-cur .rp-tv{color:#2a78d6;}'
+    +'.rp-tm{font-size:10px;font-weight:700;color:#52514e;}'
+    +'.rp-note{font-size:9.5px;color:#8a8984;text-align:right;margin:2px 0 2px;}'
+    +'.rp-foot{margin-top:7mm;display:flex;justify-content:space-between;font-size:9.5px;color:#8a8984;border-top:1px solid #e5e3de;padding-top:6px;}'
+    +'</style>';
+  const body = '<div class="rp-root">'
+    +'<div class="rp-head"><div><div class="rp-title">'+(_repM==='m'?'月次':'年次')+'レポート</div><div class="rp-month">'+escapeHtml(P.title)+(P.sub?('（'+escapeHtml(P.sub)+'）'):'')+'</div></div>'
+    +'<div class="rp-meta">'+escapeHtml(mc.name||'')+'<br>発行日：'+n.getFullYear()+'/'+(n.getMonth()+1)+'/'+n.getDate()+'</div></div>'
+    +'<div class="rp-kpi">'
+    +'<div class="rp-tile"><div class="rp-klbl">売上</div><div class="rp-kval">¥'+fmt(a.sales)+'</div><div class="rp-ksub">'+dHtml+' '+P.prevLabel+'</div></div>'
+    +'<div class="rp-tile"><div class="rp-klbl">粗利</div><div class="rp-kval">¥'+fmt(gr)+'</div><div class="rp-ksub">粗利率 <b>'+grR.toFixed(1)+'%</b></div></div>'
+    +'<div class="rp-tile"><div class="rp-klbl">実績件数</div><div class="rp-kval">'+a.cnt+'件</div><div class="rp-ksub">'+fmt(a.qty)+' 個</div></div>'
+    +'<div class="rp-tile"><div class="rp-klbl">総稼働時間</div><div class="rp-kval">'+_repHM(a.secs)+'</div><div class="rp-ksub">'+a.machSet.size+'機械 稼働</div></div>'
+    +'</div>'
+    +'<div class="rp-sect">⚙ 機械別稼働（時間と売上）</div>'+(machRows||'<div class="rp-note" style="text-align:left;">データなし</div>')
+    +'<div class="rp-sect">⏱ 機械別の時間内訳（どの製品に時間を使ったか）</div>'
+    +'<table class="rp-tbl"><thead><tr><th style="width:58px;">機械</th><th>製品（図番・品名）</th><th class="rp-r">件数</th><th class="rp-r">数量</th><th class="rp-r">時間</th><th class="rp-r">時間構成比</th></tr></thead><tbody>'+(mpRows||'<tr><td class="rp-td" colspan="6" style="color:#8a8984;">データなし</td></tr>')+'</tbody></table>'
+    +'<div class="rp-note">※ 時間は実績に記録された工程時間の合計（機械ごと上位2製品＋その他）</div>'
+    +'<div class="rp-duo"><div><div class="rp-sect">🏢 会社別売上（構成比）</div>'+(cliRows||'<div class="rp-note" style="text-align:left;">データなし</div>')+'</div>'
+    +'<div><div class="rp-sect">📈 売上推移（'+(_repM==='m'?'直近6ヶ月':'期の12ヶ月')+'）</div><div class="rp-trend">'+trendCols+'</div><div class="rp-note">単位：百万円</div></div></div>'
+    +'<div class="rp-sect">📦 製品別売上 TOP'+topN+'</div>'
+    +'<table class="rp-tbl"><thead><tr><th>図番</th><th>品名</th><th>受注先</th><th class="rp-r">数量</th><th class="rp-r">時間</th><th class="rp-r">売上</th><th class="rp-r">粗利</th><th class="rp-r">粗利率</th></tr></thead><tbody>'+prodRows
+    +'<tr><td class="rp-td rp-bold" colspan="4" style="border-top:2px solid #0b0b0b;border-bottom:none;">合計（全'+a.cnt+'件）</td><td class="rp-td rp-r rp-bold" style="border-top:2px solid #0b0b0b;border-bottom:none;">'+_repHM(a.secs)+'</td><td class="rp-td rp-r rp-bold" style="border-top:2px solid #0b0b0b;border-bottom:none;">¥'+fmt(a.sales)+'</td><td class="rp-td rp-r rp-bold" style="border-top:2px solid #0b0b0b;border-bottom:none;">¥'+fmt(gr)+'</td><td class="rp-td rp-r rp-bold" style="border-top:2px solid #0b0b0b;border-bottom:none;">'+grR.toFixed(1)+'%</td></tr>'
+    +'</tbody></table>'
+    +'<div class="rp-foot"><span>'+escapeHtml(mc.name||'')+'　製造管理システム</span><span>対象期間：'+escapeHtml(P.period)+'</span></div>'
+    +'</div>';
+  return css+body;
+}
+function renderReport(){
+  const b=document.getElementById('rep-body');
+  if(!b) return;
+  b.innerHTML=_repBuildHtml(false);
+}
+function repPrint(){
+  const html=_repBuildHtml(true);
+  const w=window.open('','_blank');
+  if(!w){ showToast('ポップアップがブロックされました','error'); return; }
+  w.document.write('<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>経営レポート</title><style>@page{size:A4 portrait;margin:14mm 13mm;}body{margin:0;}</style></head><body>'+html+'<scr'+'ipt>window.onload=function(){window.print();}<\/scr'+'ipt></body></html>');
+  w.document.close();
+}
+function repCsv(){
+  const P=_repParams();
+  const a=_repAgg(P.recs);
+  const gr=a.sales-a.cost;
+  const L=[];
+  L.push(['経営レポート', P.title, P.sub||'']);
+  L.push(['対象期間', P.period]);
+  L.push([]);
+  L.push(['■サマリー']);
+  L.push(['売上', a.sales]); L.push(['原価（材料費＋外注費）', a.cost]); L.push(['粗利', gr]);
+  L.push(['粗利率（%）', a.sales?(gr/a.sales*100).toFixed(1):'0']);
+  L.push(['実績件数', a.cnt]); L.push(['総数量', a.qty]); L.push(['総稼働時間', _repHM(a.secs)]);
+  L.push([]);
+  L.push(['■機械別稼働']);
+  L.push(['機械','稼働時間','売上']);
+  Object.keys(a.machines).sort(function(x,y){return a.machines[y].secs-a.machines[x].secs;}).forEach(function(k){
+    L.push([k, _repHM(a.machines[k].secs), a.machines[k].sales]);
+  });
+  L.push([]);
+  L.push(['■機械別×製品 時間内訳']);
+  L.push(['機械','図番','品名','件数','数量','時間']);
+  Object.keys(a.machines).sort(function(x,y){return a.machines[y].secs-a.machines[x].secs;}).forEach(function(k){
+    const m=a.machines[k];
+    Object.keys(m.products).sort(function(x,y){return m.products[y].secs-m.products[x].secs;}).forEach(function(pk){
+      const p=m.products[pk], nm=pk.split('\t');
+      L.push([k, nm[0], nm[1], p.cnt, p.qty, _repHM(p.secs)]);
+    });
+  });
+  L.push([]);
+  L.push(['■会社別売上']);
+  L.push(['受注先','件数','売上']);
+  Object.keys(a.clients).sort(function(x,y){return a.clients[y].sales-a.clients[x].sales;}).forEach(function(k){
+    L.push([k, a.clients[k].cnt, a.clients[k].sales]);
+  });
+  L.push([]);
+  L.push(['■製品別売上（全件）']);
+  L.push(['図番','品名','受注先','件数','数量','時間','売上','原価','粗利','粗利率（%）']);
+  Object.keys(a.products).sort(function(x,y){return a.products[y].sales-a.products[x].sales;}).forEach(function(pk){
+    const p=a.products[pk], nm=pk.split('\t'), g=p.sales-p.cost;
+    L.push([nm[0], nm[1], p.client, p.cnt, p.qty, _repHM(p.secs), p.sales, p.cost, g, p.sales?(g/p.sales*100).toFixed(1):'0']);
+  });
+  const csv='﻿'+L.map(function(row){ return row.map(function(v){ v=String(v==null?'':v); return /[",\n]/.test(v)?('"'+v.replace(/"/g,'""')+'"'):v; }).join(','); }).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const aEl=document.createElement('a');
+  aEl.href=URL.createObjectURL(blob);
+  aEl.download='経営レポート_'+(P.title.replace(/[年月期（）\s]/g,function(c){return c==='年'?'-':(c==='月'||c==='期')?'':c;})||'report')+'.csv';
+  document.body.appendChild(aEl); aEl.click();
+  setTimeout(function(){ URL.revokeObjectURL(aEl.href); aEl.remove(); },500);
+  showToast('📥 CSVを保存しました（Excelで開けます）');
 }
 
 // ===== 材料手配チェック =====
