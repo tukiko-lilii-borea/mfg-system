@@ -4176,7 +4176,7 @@ function printWorksheet(p, qtys, prodQty, due, mgNo, stocksArr, po){
     </div>
 
     <div class="blk">
-      <div class="band b-office">★ 事務記入欄</div>
+      <div class="band b-office">★ 事務記入欄<span style="font-weight:500;font-size:9px;opacity:0.75;margin-left:8px;">（${(()=>{ const d=p.date?new Date(p.date):new Date(); return d.getFullYear()+'/'+(d.getMonth()+1)+'/'+d.getDate(); })()}）</span></div>
       <div class="ofgrid3">
         ${ofCard('材料発注先', matList('supplier'), 'green')}
         ${ofCard('材料名', matList('name'), 'green')}
@@ -4901,6 +4901,7 @@ function reprintWorksheet(recordId){
   // 実績の内容から擬似的な製品オブジェクトを組み立てる
   const pseudo = {
     fignum: r.fignum||'', name: r.name||'', client: r.client||'',
+    date: r.date||'',
     price: r.price||0,
     workerNote: prodMaster ? (prodMaster.workerNote||'') : '',
     claims: prodMaster ? (prodMaster.claims||[]) : [],
