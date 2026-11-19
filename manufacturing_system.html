@@ -1296,7 +1296,7 @@
       <div class="page-header">
         <div><div class="page-title">📊 経営レポート</div><div class="page-subtitle">コンサル・銀行向けの月次／年次サマリー（PDF・Excel出力対応）</div></div>
         <div style="display:flex;gap:8px;">
-          <button class="btn btn-ghost btn-sm" onclick="repCsv()">📥 Excel用CSV</button>
+          <button class="btn btn-ghost btn-sm" onclick="repCsv()">📥 Excel</button>
           <button class="btn btn-primary btn-sm" onclick="repPrint()">🖨 PDF / 印刷</button>
         </div>
       </div>
@@ -1309,7 +1309,7 @@
         <select id="rep-month" onchange="renderReport()" style="width:150px;font-weight:700;"></select>
         <select id="rep-cyear" onchange="renderReport()" style="width:130px;font-weight:700;display:none;"></select>
         <select id="rep-fy" onchange="renderReport()" style="width:190px;font-weight:700;display:none;"></select>
-        <span id="rep-multi-hint" style="font-size:11.5px;color:var(--text2);display:none;">※ PDF・CSVには月別の内訳も一緒に入ります</span>
+        <span id="rep-multi-hint" style="font-size:11.5px;color:var(--text2);display:none;">※ Excelは月ごとのシート（下のタブ）、PDFは月ごとのページに分かれます</span>
       </div>
       <div class="card" style="max-width:860px;">
         <div id="rep-body"></div>
@@ -2850,17 +2850,13 @@ function _repCsvSection(L, label, recs){
   L.push(['■'+label]);
   L.push(['売上',a.sales,'原価',a.cost,'粗利',gr,'粗利率（%）',a.sales?(gr/a.sales*100).toFixed(1):'0','件数',a.cnt,'数量',a.qty,'稼働時間',_repHM(a.secs)]);
 }
-function repCsv(){
-  const P=_repParams();
-  const a=_repAgg(P.recs);
+function _repAoA(recs){
+  const a=_repAgg(recs);
   const gr=a.sales-a.cost;
   const L=[];
-  L.push(['経営レポート', P.title, P.sub||'']);
-  L.push(['対象期間', P.period]);
-  L.push([]);
   L.push(['■サマリー']);
   L.push(['売上', a.sales]); L.push(['原価（材料費＋外注費）', a.cost]); L.push(['粗利', gr]);
-  L.push(['粗利率（%）', a.sales?(gr/a.sales*100).toFixed(1):'0']);
+  L.push(['粗利率（%）', a.sales?Number((gr/a.sales*100).toFixed(1)):0]);
   L.push(['実績件数', a.cnt]); L.push(['総数量', a.qty]); L.push(['総稼働時間', _repHM(a.secs)]);
   L.push([]);
   L.push(['■機械別稼働']);
@@ -2889,44 +2885,64 @@ function repCsv(){
   L.push(['図番','品名','受注先','件数','数量','時間','売上','原価','粗利','粗利率（%）']);
   Object.keys(a.products).sort(function(x,y){return a.products[y].sales-a.products[x].sales;}).forEach(function(pk){
     const p=a.products[pk], nm=pk.split('\t'), g=p.sales-p.cost;
-    L.push([nm[0], nm[1], p.client, p.cnt, p.qty, _repHM(p.secs), p.sales, p.cost, g, p.sales?(g/p.sales*100).toFixed(1):'0']);
+    L.push([nm[0], nm[1], p.client, p.cnt, p.qty, _repHM(p.secs), p.sales, p.cost, g, p.sales?Number((g/p.sales*100).toFixed(1)):0]);
   });
+  return L;
+}
+function _repSheet(wb, name, rows){
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:16},{wch:22},{wch:14},{wch:9},{wch:9},{wch:10},{wch:12},{wch:12},{wch:12},{wch:11}];
+  XLSX.utils.book_append_sheet(wb, ws, name);
+}
+function repCsv(){
+  const P=_repParams();
+  const fname='経営レポート_'+P.title.replace(/[（）\s]/g,'');
+  if(window.XLSX && XLSX.utils && XLSX.utils.book_new){
+    // ===== Excel（.xlsx）：月ごとにシート分け =====
+    const wb=XLSX.utils.book_new();
+    const head=[['経営レポート', P.title, P.sub||''],['対象期間', P.period],[]];
+    if(P.kind==='m'){
+      _repSheet(wb, P.title, head.concat(_repAoA(P.recs)));
+    }else{
+      // まとめシート：全体集計＋月別サマリー表
+      const sum=head.concat(_repAoA(P.recs));
+      sum.push([]);
+      sum.push(['■月別サマリー']);
+      sum.push(['月','売上','原価','粗利','粗利率（%）','件数','数量','稼働時間']);
+      P.trend.forEach(function(t){
+        const ma=_repAgg(_repRecsOfMonth(t.y,t.m));
+        const mg=ma.sales-ma.cost;
+        sum.push([t.y+'/'+t.m, ma.sales, ma.cost, mg, ma.sales?Number((mg/ma.sales*100).toFixed(1)):0, ma.cnt, ma.qty, _repHM(ma.secs)]);
+      });
+      _repSheet(wb, 'まとめ', sum);
+      // 月シート（実績のある月だけ、期の順で）
+      P.trend.forEach(function(t){
+        const recs=_repRecsOfMonth(t.y,t.m);
+        if(!recs.length) return;
+        const mh=[['月次レポート', t.y+'年'+t.m+'月'],[]];
+        _repSheet(wb, t.m+'月', mh.concat(_repAoA(recs)));
+      });
+    }
+    XLSX.writeFile(wb, fname+'.xlsx');
+    showToast('📥 Excelを保存しました（下のタブで月を切替できます）');
+    return;
+  }
+  // ===== フォールバック：CSV（1シート） =====
+  const L=[['経営レポート', P.title, P.sub||''],['対象期間', P.period],[]].concat(_repAoA(P.recs));
   if(P.kind!=='m'){
-    // ===== 月別の内訳（年・決算期のとき） =====
-    L.push([]);
-    L.push(['━━ 月別内訳 ━━']);
-    L.push([]);
-    L.push(['■月別サマリー']);
+    L.push([]); L.push(['■月別サマリー']);
     L.push(['月','売上','原価','粗利','粗利率（%）','件数','数量','稼働時間']);
     P.trend.forEach(function(t){
       const ma=_repAgg(_repRecsOfMonth(t.y,t.m));
       const mg=ma.sales-ma.cost;
       L.push([t.y+'/'+t.m, ma.sales, ma.cost, mg, ma.sales?(mg/ma.sales*100).toFixed(1):'0', ma.cnt, ma.qty, _repHM(ma.secs)]);
     });
-    L.push([]);
-    L.push(['■月別 機械別稼働']);
-    L.push(['月','機械','稼働時間','売上']);
-    P.trend.forEach(function(t){
-      const ma=_repAgg(_repRecsOfMonth(t.y,t.m));
-      Object.keys(ma.machines).sort(function(x,y){return ma.machines[y].secs-ma.machines[x].secs;}).forEach(function(k){
-        L.push([t.y+'/'+t.m, k, _repHM(ma.machines[k].secs), ma.machines[k].sales]);
-      });
-    });
-    L.push([]);
-    L.push(['■月別 会社別売上']);
-    L.push(['月','受注先','件数','売上']);
-    P.trend.forEach(function(t){
-      const ma=_repAgg(_repRecsOfMonth(t.y,t.m));
-      Object.keys(ma.clients).sort(function(x,y){return ma.clients[y].sales-ma.clients[x].sales;}).forEach(function(k){
-        L.push([t.y+'/'+t.m, k, ma.clients[k].cnt, ma.clients[k].sales]);
-      });
-    });
   }
   const csv='﻿'+L.map(function(row){ return row.map(function(v){ v=String(v==null?'':v); return /[",\n]/.test(v)?('"'+v.replace(/"/g,'""')+'"'):v; }).join(','); }).join('\r\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   const aEl=document.createElement('a');
   aEl.href=URL.createObjectURL(blob);
-  aEl.download='経営レポート_'+P.title.replace(/[（）\s]/g,'')+'.csv';
+  aEl.download=fname+'.csv';
   document.body.appendChild(aEl); aEl.click();
   setTimeout(function(){ URL.revokeObjectURL(aEl.href); aEl.remove(); },500);
   showToast('📥 CSVを保存しました（Excelで開けます）');
